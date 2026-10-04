@@ -315,7 +315,7 @@
             <span>Uang Diterima (Tunai)</span>
             <span id="cash-change-label" class="font-bold text-emerald-600">Kembalian: Rp 0</span>
           </div>
-          <input type="number" id="cash-given-input" oninput="calculateCashChange()" placeholder="Masukkan Nominal..." class="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-sm font-mono font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-brand-500">
+          <input type="text" inputmode="numeric" id="cash-given-input" oninput="sanitizeCashInput(this); calculateCashChange()" placeholder="Masukkan Nominal..." class="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-sm font-mono font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-brand-500">
           <div class="grid grid-cols-4 gap-1">
             <button onclick="setExactCash()" class="py-1 bg-slate-200 hover:bg-slate-300 text-slate-700 text-[11px] font-bold rounded-md">Uang Pas</button>
             <button onclick="addCashGiven(20000)" class="py-1 bg-slate-200 hover:bg-slate-300 text-slate-700 text-[11px] font-mono font-bold rounded-md">20rb</button>
@@ -555,28 +555,24 @@
     </div>
   </div>
 
-  <!-- MODAL: USER SWITCHER (2 USERS: 1. KASIR, 2. ADMIN) -->
+  <!-- MODAL: ACCOUNT MENU -->
   <div id="user-switch-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
     <div class="bg-white w-full max-w-sm rounded-2xl shadow-2xl flex flex-col overflow-hidden">
       <div class="bg-slate-900 text-white p-4 flex justify-between items-center">
-        <h3 class="font-bold text-sm">Pilih Pengguna (2 User)</h3>
+        <div>
+          <h3 class="font-bold text-sm">Menu Akun</h3>
+          <p id="account-modal-email" class="text-[10px] text-slate-400 mt-1"></p>
+        </div>
         <button onclick="closeUserSwitchModal()" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
       </div>
       <div class="p-5 space-y-3">
-        <button onclick="switchUserRole('Kasir')" class="w-full p-3 rounded-xl border border-slate-200 hover:bg-brand-50 hover:border-brand-300 flex items-center gap-3 transition group text-left">
-          <div class="w-10 h-10 rounded-xl bg-brand-100 text-brand-600 flex items-center justify-center font-black text-base group-hover:bg-brand-600 group-hover:text-white transition">1</div>
-          <div>
-            <span class="block font-bold text-sm text-slate-800">1. Kasir</span>
-            <span class="block text-[11px] text-slate-400">Operasional Penjualan & Pembayaran (PIN: 1111)</span>
-          </div>
+        <button onclick="switchAccount()" class="w-full p-3 rounded-xl border border-indigo-200 bg-indigo-50 hover:bg-indigo-100 flex items-center gap-3 transition text-left">
+          <div class="w-10 h-10 rounded-xl bg-indigo-600 text-white flex items-center justify-center"><i class="fa-solid fa-right-left"></i></div>
+          <div><span class="block font-bold text-sm text-slate-800">Tukar Akun</span><span class="block text-[11px] text-slate-500">Logout lalu masuk dengan akun admin/kasir lain</span></div>
         </button>
-
-        <button onclick="switchUserRole('Admin')" class="w-full p-3 rounded-xl border border-slate-200 hover:bg-indigo-50 hover:border-indigo-300 flex items-center gap-3 transition group text-left">
-          <div class="w-10 h-10 rounded-xl bg-indigo-100 text-indigo-600 flex items-center justify-center font-black text-base group-hover:bg-indigo-600 group-hover:text-white transition">2</div>
-          <div>
-            <span class="block font-bold text-sm text-slate-800">2. Admin</span>
-            <span class="block text-[11px] text-slate-400">Stok Opname, Kelola Menu & Laporan (PIN: 1234)</span>
-          </div>
+        <button onclick="signOutAdmin()" class="w-full p-3 rounded-xl border border-red-200 bg-red-50 hover:bg-red-100 flex items-center gap-3 transition text-left">
+          <div class="w-10 h-10 rounded-xl bg-red-600 text-white flex items-center justify-center"><i class="fa-solid fa-right-from-bracket"></i></div>
+          <div><span class="block font-bold text-sm text-slate-800">Logout</span><span class="block text-[11px] text-slate-500">Keluar dari sesi Supabase pada perangkat ini</span></div>
         </button>
       </div>
     </div>
@@ -1321,25 +1317,27 @@
       }
     }
 
-    function calculateGrandTotal() {
+    function getPaymentBreakdown() {
       const subtotal = CART.reduce((acc, item) => acc + (item.price * item.qty), 0);
-      document.getElementById('cart-subtotal').textContent = `Rp ${subtotal.toLocaleString('id-ID')}`;
-      document.getElementById('cart-item-count').textContent = CART.reduce((acc, i) => acc + i.qty, 0);
-
       const useTax = document.getElementById('tax-toggle-checkbox').checked;
       const tax = useTax ? subtotal * 0.10 : 0;
-      document.getElementById('cart-tax').textContent = `Rp ${tax.toLocaleString('id-ID')}`;
-
-      const serviceRate = parseFloat(document.getElementById('service-charge-select').value);
+      const serviceRate = parseFloat(document.getElementById('service-charge-select').value) || 0;
       const serviceCharge = subtotal * serviceRate;
-      const discountRate = parseFloat(document.getElementById('discount-select').value);
+      const discountRate = parseFloat(document.getElementById('discount-select').value) || 0;
       const discount = (subtotal + tax + serviceCharge) * discountRate;
       const memberDiscount = document.getElementById('member-selector').value ? 5000 : 0;
-
       const grandTotal = Math.max(0, subtotal + tax + serviceCharge - discount - memberDiscount);
-      document.getElementById('cart-grand-total').textContent = `Rp ${grandTotal.toLocaleString('id-ID')}`;
-      calculateCashChange(grandTotal);
-      return grandTotal;
+      return { subtotal, tax, serviceRate, serviceCharge, discountRate, discount, memberDiscount, grandTotal };
+    }
+
+    function calculateGrandTotal() {
+      const summary = getPaymentBreakdown();
+      document.getElementById('cart-subtotal').textContent = `Rp ${summary.subtotal.toLocaleString('id-ID')}`;
+      document.getElementById('cart-item-count').textContent = CART.reduce((acc, i) => acc + i.qty, 0);
+      document.getElementById('cart-tax').textContent = `Rp ${summary.tax.toLocaleString('id-ID')}`;
+      document.getElementById('cart-grand-total').textContent = `Rp ${summary.grandTotal.toLocaleString('id-ID')}`;
+      calculateCashChange(summary.grandTotal);
+      return summary.grandTotal;
     }
 
     function setPaymentMethod(method) {
@@ -1351,11 +1349,20 @@
       document.getElementById('cash-payment-section').classList.toggle('hidden', method !== 'Cash');
     }
 
+    function sanitizeCashInput(input) {
+      input.value = input.value.replace(/[^0-9]/g, '');
+    }
+
     function calculateCashChange(knownGT) {
       const gt = knownGT !== undefined ? knownGT : calculateGrandTotal();
-      const given = parseFloat(document.getElementById('cash-given-input').value) || 0;
+      const inputValue = document.getElementById('cash-given-input').value.trim();
+      const given = parseFloat(inputValue) || 0;
       const change = given - gt;
       const lbl = document.getElementById('cash-change-label');
+      if (inputValue === '') {
+        lbl.textContent = 'Masukkan nominal pembayaran';
+        return;
+      }
       lbl.textContent = change >= 0 ? `Kembalian: Rp ${change.toLocaleString('id-ID')}` : `Kurang: Rp ${Math.abs(change).toLocaleString('id-ID')}`;
     }
 
@@ -1413,8 +1420,10 @@
 
     function processCheckout() {
       if(CART.length === 0) { showToast('Keranjang kosong!', 'error'); return; }
-      const gt = calculateGrandTotal();
+      const summary = getPaymentBreakdown();
+      const gt = summary.grandTotal;
       const given = currentPaymentMethod === 'Cash' ? (parseFloat(document.getElementById('cash-given-input').value) || 0) : gt;
+      const change = Math.max(0, given - gt);
       if (currentPaymentMethod === 'Cash' && given < gt) {
         showToast(`Uang masih kurang Rp ${(gt - given).toLocaleString('id-ID')}`, 'error');
         document.getElementById('cash-given-input').focus();
@@ -1429,11 +1438,18 @@
         table: currentTable, 
         orderType: currentOrderType, 
         cashier: currentUser.name, 
-        items: JSON.parse(JSON.stringify(CART)), 
-        subtotal: CART.reduce((a,i)=>a+i.price*i.qty,0), 
-        tax: document.getElementById('tax-toggle-checkbox').checked ? CART.reduce((a,i)=>a+i.price*i.qty,0)*0.1 : 0, 
-        grandTotal: gt, 
-        paymentMethod: currentPaymentMethod 
+        items: JSON.parse(JSON.stringify(CART)),
+        subtotal: summary.subtotal,
+        tax: summary.tax,
+        serviceRate: summary.serviceRate,
+        serviceCharge: summary.serviceCharge,
+        discountRate: summary.discountRate,
+        discount: summary.discount,
+        memberDiscount: summary.memberDiscount,
+        grandTotal: gt,
+        paymentMethod: currentPaymentMethod,
+        cashGiven: given,
+        change: change 
       };
       
       TRANSACTION_HISTORY.unshift(trx);
@@ -1472,9 +1488,14 @@
         </div>
         <div class="space-y-0.5 text-right font-bold text-[11px]">
           <div>Subtotal: Rp ${trx.subtotal.toLocaleString('id-ID')}</div>
-          ${trx.tax > 0 ? `<div>Pajak (PB1): Rp ${trx.tax.toLocaleString('id-ID')}</div>`:''}
-          <div class="text-sm font-black text-brand-600 pt-1 border-t">GRAND TOTAL: Rp ${gt.toLocaleString('id-ID')}</div>
-          <div>Metode: ${currentPaymentMethod}</div>
+          <div>Pajak (PB1): Rp ${trx.tax.toLocaleString('id-ID')}</div>
+          <div>Service Charge (${(trx.serviceRate * 100).toFixed(0)}%): Rp ${trx.serviceCharge.toLocaleString('id-ID')}</div>
+          <div>Diskon: - Rp ${trx.discount.toLocaleString('id-ID')}</div>
+          <div>Diskon Member: - Rp ${trx.memberDiscount.toLocaleString('id-ID')}</div>
+          <div class="text-sm font-black text-brand-600 pt-1 border-t">TOTAL BAYAR: Rp ${gt.toLocaleString('id-ID')}</div>
+          <div class="pt-1">Metode: ${currentPaymentMethod}</div>
+          <div>Dibayar: Rp ${trx.cashGiven.toLocaleString('id-ID')}</div>
+          <div class="text-brand-600">Kembalian: Rp ${trx.change.toLocaleString('id-ID')}</div>
         </div>
         <div class="text-center pt-3 border-t border-dashed text-[10px] text-slate-500">
           ${storeConfig.footer || 'Terima Kasih atas Kunjungan Anda!'}
@@ -1486,11 +1507,20 @@
     }
     function closeReceiptModal() { document.getElementById('receipt-modal').classList.add('hidden'); CART = []; renderCart(); }
 
-    function openUserSwitchModal() { document.getElementById('user-switch-modal').classList.remove('hidden'); }
+    function openUserSwitchModal() {
+      const email = document.getElementById('account-modal-email');
+      if (email) email.textContent = currentAuthSession?.user?.email || '';
+      document.getElementById('user-switch-modal').classList.remove('hidden');
+    }
     function closeUserSwitchModal() { document.getElementById('user-switch-modal').classList.add('hidden'); }
     function switchUserRole(role) {
-      showToast('Role ditentukan oleh akun Supabase Auth dan tidak dapat diganti dari browser.', 'error');
+      switchAccount();
+    }
+
+    async function switchAccount() {
       closeUserSwitchModal();
+      await signOutAdmin();
+      setTimeout(() => document.getElementById('auth-email')?.focus(), 250);
     }
 
     function checkAdminAccess(action) {
