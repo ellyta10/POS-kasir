@@ -138,6 +138,9 @@
         <span>Shift Kasir</span>
       </button>
 
+      <!-- VOID TRANSACTION BUTTON -->
+      <button onclick="openVoidModal()" class="px-3 py-1.5 rounded-xl bg-red-900/60 hover:bg-red-800 text-red-100 text-xs font-semibold flex items-center gap-1.5 transition border border-red-700 whitespace-nowrap active:scale-95"><i class="fa-solid fa-ban"></i><span>Void</span></button>
+
       <!-- RECALL ACTIVE BILLS BUTTON -->
       <button onclick="openRecallBillsModal()" class="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold flex items-center gap-1.5 transition border border-slate-700 whitespace-nowrap active:scale-95">
         <i class="fa-solid fa-bell-concierge text-sky-400"></i>
@@ -580,6 +583,9 @@
       </div>
     </div>
   </div>
+
+  <!-- MODAL: VOID TRANSACTION -->
+  <div id="void-transaction-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[60] flex items-center justify-center hidden p-4"><div class="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden"><div class="bg-red-700 text-white p-4 flex justify-between items-center"><div><h3 class="font-bold text-sm">Void Pesanan</h3><p class="text-[10px] text-red-100">Transaksi tidak dihapus; status menjadi VOID.</p></div><button onclick="closeVoidModal()" class="text-red-100"><i class="fa-solid fa-xmark"></i></button></div><div class="p-5 space-y-3"><div><label class="text-xs font-bold text-slate-600 block mb-1">Nomor Transaksi</label><input id="void-trx-id" placeholder="TRX-123456" class="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm font-mono"></div><div><label class="text-xs font-bold text-slate-600 block mb-1">Alasan Void</label><textarea id="void-reason" rows="3" placeholder="Alasan pembatalan pesanan" class="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm"></textarea></div><p class="text-[10px] text-slate-400">Admin dan kasir dapat melakukan void. Setiap void tercatat di audit log.</p></div><div class="p-4 bg-slate-50 border-t flex justify-end gap-2"><button onclick="closeVoidModal()" class="px-4 py-2 bg-slate-200 text-slate-700 text-xs font-bold rounded-xl">Batal</button><button onclick="voidTransaction()" class="px-4 py-2 bg-red-600 text-white text-xs font-bold rounded-xl">Konfirmasi Void</button></div></div></div>
 
   <!-- MODAL: MANAGEMENT / ADMIN -->
   <div id="management-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
@@ -1224,6 +1230,7 @@
           tax: tx.tax,
           grand_total: tx.grandTotal,
           payment_method: tx.paymentMethod,
+          status: tx.status || 'completed',
           items: tx.items
         }]);
       } catch(e) { console.error('Supabase sync error:', e); }
@@ -1498,7 +1505,8 @@
         grandTotal: gt,
         paymentMethod: currentPaymentMethod,
         cashGiven: given,
-        change: change 
+        change: change,
+        status: 'completed'
       };
       
       TRANSACTION_HISTORY.unshift(trx);
@@ -1763,6 +1771,7 @@
         renderMenuManagementTable();
         closeAddProductModal();
         showToast(id ? 'Menu berhasil diperbarui' : 'Menu berhasil ditambahkan', 'success');
+        await logAudit(id ? 'update_product' : 'create_product', 'product', product.id, { name: product.name, price: product.price, gojek_price: product.gojek_price, grab_price: product.grab_price });
       } catch (error) {
         console.error('Gagal menyimpan menu:', error);
         showToast('Gagal menyimpan menu ke Supabase: ' + error.message, 'error');
@@ -1786,6 +1795,7 @@
         renderProductsTable();
         renderMenuManagementTable();
         showToast('Menu berhasil dihapus', 'success');
+        await logAudit('delete_product', 'product', id, { name: product.name });
       } catch (error) {
         console.error('Gagal menghapus menu:', error);
         showToast('Gagal menghapus menu: ' + error.message, 'error');
@@ -1843,15 +1853,43 @@
       else { showToast('PIN minimal 4 digit', 'error'); }
     }
 
+    function openVoidModal() {
+      if (!currentAuthSession) { document.body.classList.add('auth-locked'); return; }
+      document.getElementById('void-trx-id').value = '';
+      document.getElementById('void-reason').value = '';
+      document.getElementById('void-transaction-modal').classList.remove('hidden');
+    }
+    function closeVoidModal() { document.getElementById('void-transaction-modal').classList.add('hidden'); }
+    async function logAudit(action, targetType, targetId, details = {}) {
+      if (!supabaseClient || !currentAuthSession) return;
+      const { error } = await supabaseClient.from('audit_logs').insert([{
+        user_id: currentAuthSession.user.id,
+        user_email: currentAuthSession.user.email || '',
+        action, target_type: targetType, target_id: targetId || null, details
+      }]);
+      if (error) console.error('Audit log error:', error);
+    }
+    async function voidTransaction() {
+      const trxId = document.getElementById('void-trx-id').value.trim();
+      const reason = document.getElementById('void-reason').value.trim();
+      if (!trxId || !reason) { showToast('Nomor transaksi dan alasan wajib diisi', 'error'); return; }
+      if (!currentAuthSession) { showToast('Sesi login sudah berakhir', 'error'); return; }
+      if (!confirm(`Void transaksi ${trxId}? Transaksi tidak akan dihapus.`)) return;
+      const { error } = await supabaseClient.rpc('void_transaction', { p_trx_id: trxId, p_reason: reason });
+      if (error) { showToast('Void gagal: ' + error.message, 'error'); return; }
+      closeVoidModal();
+      showToast('Transaksi berhasil di-void dan dicatat di audit log', 'success');
+    }
+
     async function loadReportsFromSupabase() {
       if (!supabaseClient) throw new Error('Supabase belum tersambung');
       const { data, error } = await supabaseClient
         .from('transactions')
-        .select('date, grand_total, order_type, payment_method')
+        .select('date, grand_total, order_type, payment_method, status')
         .order('date', { ascending: false })
         .limit(5000);
       if (error) throw error;
-      const rows = data || [];
+      const rows = (data || []).filter(row => row.status !== 'voided');
       const totalRev = rows.reduce((sum, row) => sum + Number(row.grand_total || 0), 0);
       const paymentTotals = {};
       rows.forEach(row => {
