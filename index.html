@@ -40,6 +40,33 @@
     .no-scrollbar::-webkit-scrollbar { display: none; }
     .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
     
+    /* Mobile-safe viewport and touch targets */
+    html { min-height: 100%; }
+    button, input, select { min-height: 40px; }
+    button { touch-action: manipulation; }
+
+    @media (max-width: 1023px) {
+      #cart-panel {
+        position: fixed;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        width: 100%;
+        max-height: 88dvh;
+        transform: translateY(100%);
+        transition: transform .2s ease;
+        z-index: 40;
+        border-radius: 1rem 1rem 0 0;
+      }
+      #cart-panel.is-open { transform: translateY(0); }
+      #cart-panel .mobile-cart-handle { display: block; }
+      #mobile-cart-backdrop { display: none; }
+      #mobile-cart-backdrop.is-open { display: block; }
+    }
+    @media (min-width: 1024px) {
+      #cart-panel .mobile-cart-handle, #mobile-cart-backdrop, #mobile-cart-toggle { display: none !important; }
+    }
+
     @media print {
       body * { visibility: hidden; }
       .printable-area, .printable-area * { visibility: visible; }
@@ -49,7 +76,7 @@
   </style>
 </head>
 
-<body class="bg-slate-100 font-sans text-slate-800 antialiased h-screen flex flex-col overflow-hidden select-none">
+<body class="bg-slate-100 font-sans text-slate-800 antialiased min-h-[100dvh] flex flex-col overflow-x-hidden">
 
   <!-- TOP HEADER NAVIGATION -->
   <header class="bg-slate-900 text-white px-4 py-2.5 flex items-center justify-between shadow-md z-30 shrink-0">
@@ -108,7 +135,7 @@
   </header>
 
   <!-- MAIN APP CONTAINER -->
-  <main class="flex-1 flex overflow-hidden">
+  <main class="flex-1 flex flex-col lg:flex-row min-h-0 overflow-hidden">
     <!-- LEFT PANEL: CATALOG & SEARCH -->
     <section class="flex-1 flex flex-col bg-slate-100 border-r border-slate-200 min-w-0">
       <!-- SEARCH & CATEGORY BAR -->
@@ -147,7 +174,10 @@
     </section>
 
     <!-- RIGHT PANEL: CART & PAYMENT (FIXED WIDTH) -->
-    <section class="w-[390px] md:w-[420px] bg-white flex flex-col h-full shadow-xl z-20 shrink-0">
+    <section id="cart-panel" class="w-full lg:w-[390px] xl:w-[420px] max-h-[58dvh] lg:max-h-none bg-white flex flex-col h-full shadow-xl z-40 lg:z-20 shrink-0 min-h-0">
+      <div class="mobile-cart-handle hidden p-2 border-b border-slate-200 text-center bg-white">
+        <button type="button" onclick="toggleMobileCart()" class="!min-h-[28px] px-4 text-xs font-bold text-slate-500">Tutup Keranjang</button>
+      </div>
       <!-- TOP ORDER HEADER: ORDER TYPE & TABLE SELECTOR -->
       <div class="p-3 border-b border-slate-200 bg-slate-50 flex flex-col gap-2.5 shrink-0">
         <div class="grid grid-cols-4 gap-1 bg-slate-200 p-1 rounded-xl">
@@ -285,6 +315,12 @@
     </section>
   </main>
 
+  <div id="mobile-cart-backdrop" onclick="toggleMobileCart(false)" class="fixed inset-0 bg-slate-900/40 z-30 hidden"></div>
+  <button id="mobile-cart-toggle" type="button" onclick="toggleMobileCart()" class="lg:hidden fixed bottom-4 left-4 right-4 z-30 min-h-[48px] rounded-2xl bg-emerald-600 px-4 py-3 text-white font-extrabold shadow-xl flex items-center justify-between">
+    <span>Keranjang (<span id="mobile-cart-count">0</span>)</span>
+    <span id="mobile-cart-total">Rp 0</span>
+  </button>
+
   <!-- MODAL: KITCHEN TICKET (PRINTABLE) -->
   <div id="kitchen-ticket-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
     <div class="bg-white w-full max-w-md rounded-2xl shadow-2xl flex flex-col overflow-hidden">
@@ -305,7 +341,7 @@
         <!-- Rendered via JS -->
       </div>
 
-      <div class="p-4 bg-slate-50 border-t border-slate-200 flex justify-end gap-2">
+      <div class="p-4 bg-slate-50 border-t border-slate-200 flex flex-col-reverse sm:flex-row sm:justify-end gap-2">
         <button onclick="printKitchenTicket()" class="px-4 py-2 bg-slate-800 hover:bg-slate-900 text-white text-xs font-bold rounded-xl transition flex items-center gap-1.5 shadow-sm">
           <i class="fa-solid fa-print"></i>
           <span>Cetak Tiket Dapur</span>
@@ -337,7 +373,7 @@
         <!-- Rendered via JS -->
       </div>
 
-      <div class="p-4 bg-slate-50 border-t border-slate-200 flex justify-end gap-2">
+      <div class="p-4 bg-slate-50 border-t border-slate-200 flex flex-col-reverse sm:flex-row sm:justify-end gap-2">
         <button onclick="window.print()" class="px-4 py-2 bg-slate-800 hover:bg-slate-900 text-white text-xs font-bold rounded-xl transition flex items-center gap-1.5 shadow-sm">
           <i class="fa-solid fa-print"></i>
           <span>Cetak Struk</span>
@@ -945,6 +981,15 @@
     function updateCartNotes(idx, val) { CART[idx].notes = val; }
     function removeFromCart(idx) { CART.splice(idx, 1); renderCart(); }
 
+    function toggleMobileCart(force) {
+      const panel = document.getElementById('cart-panel');
+      const backdrop = document.getElementById('mobile-cart-backdrop');
+      const open = force === undefined ? !panel.classList.contains('is-open') : force;
+      panel.classList.toggle('is-open', open);
+      backdrop.classList.toggle('is-open', open);
+      backdrop.classList.toggle('hidden', !open);
+    }
+
     function renderCart() {
       const container = document.getElementById('cart-items-container');
       container.innerHTML = '';
@@ -962,7 +1007,17 @@
           container.appendChild(row);
         });
       }
-      calculateGrandTotal();
+      const total = calculateGrandTotal();
+      const mobileCount = document.getElementById('mobile-cart-count');
+      const mobileTotal = document.getElementById('mobile-cart-total');
+      if (mobileCount) mobileCount.textContent = CART.reduce((acc, i) => acc + i.qty, 0);
+      if (mobileTotal) mobileTotal.textContent = `Rp ${total.toLocaleString('id-ID')}`;
+      const checkoutButton = document.querySelector('[onclick="processCheckout()"]');
+      if (checkoutButton) {
+        checkoutButton.disabled = CART.length === 0;
+        checkoutButton.classList.toggle('opacity-50', CART.length === 0);
+        checkoutButton.classList.toggle('cursor-not-allowed', CART.length === 0);
+      }
     }
 
     function calculateGrandTotal() {
@@ -1057,7 +1112,12 @@
     function processCheckout() {
       if(CART.length === 0) { showToast('Keranjang kosong!', 'error'); return; }
       const gt = calculateGrandTotal();
-      const given = currentPaymentMethod === 'Cash' ? (parseFloat(document.getElementById('cash-given-input').value) || gt) : gt;
+      const given = currentPaymentMethod === 'Cash' ? (parseFloat(document.getElementById('cash-given-input').value) || 0) : gt;
+      if (currentPaymentMethod === 'Cash' && given < gt) {
+        showToast(`Uang masih kurang Rp ${(gt - given).toLocaleString('id-ID')}`, 'error');
+        document.getElementById('cash-given-input').focus();
+        return;
+      }
       const trxId = 'TRX-' + Math.floor(100000 + Math.random() * 900000);
 
       const trx = { 
