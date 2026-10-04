@@ -793,20 +793,82 @@
     </div>
   </div>
 
+  <!-- MODAL: ADD / EDIT PRODUCT -->
+  <div id="add-product-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden items-center justify-center p-4">
+    <div class="bg-white w-full max-w-md rounded-2xl shadow-2xl flex flex-col overflow-hidden">
+      <div class="bg-slate-900 text-white p-4 flex justify-between items-center">
+        <h3 id="product-modal-title" class="font-bold text-sm">Tambah Menu Baru</h3>
+        <button type="button" onclick="closeAddProductModal()" class="w-10 h-10 rounded-full bg-slate-800 text-slate-300">✕</button>
+      </div>
+      <div class="p-5 space-y-3 overflow-y-auto max-h-[65dvh]">
+        <input type="hidden" id="edit-product-id">
+        <div>
+          <label class="text-xs font-bold text-slate-600 block mb-1">Nama Menu</label>
+          <input id="product-name-input" type="text" maxlength="100" placeholder="Contoh: Ayam Goreng Sambal Terasi" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm">
+        </div>
+        <div>
+          <label class="text-xs font-bold text-slate-600 block mb-1">Kategori</label>
+          <input id="product-category-input" type="text" maxlength="50" placeholder="Contoh: Makanan Utama" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm">
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="text-xs font-bold text-slate-600 block mb-1">Harga</label>
+            <input id="product-price-input" type="number" min="0" step="500" placeholder="28000" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm">
+          </div>
+          <div>
+            <label class="text-xs font-bold text-slate-600 block mb-1">Emoji</label>
+            <input id="product-emoji-input" type="text" maxlength="4" placeholder="🍛" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm">
+          </div>
+        </div>
+        <label class="flex items-center gap-2 text-sm font-semibold text-slate-700">
+          <input id="product-available-input" type="checkbox" checked class="w-5 h-5">
+          Menu tersedia
+        </label>
+      </div>
+      <div class="p-4 bg-slate-50 border-t flex flex-col-reverse sm:flex-row sm:justify-end gap-2">
+        <button type="button" onclick="closeAddProductModal()" class="px-4 py-2 bg-slate-200 text-slate-700 text-xs font-bold rounded-xl">Batal</button>
+        <button type="button" onclick="saveProduct()" class="px-4 py-2 bg-brand-600 text-white text-xs font-bold rounded-xl">Simpan Menu</button>
+      </div>
+    </div>
+  </div>
+
   <!-- TOAST CONTAINER -->
   <div id="toast-container" class="fixed bottom-5 right-5 z-50 flex flex-col gap-2 pointer-events-none"></div>
 
   <!-- APPLICATION JAVASCRIPT -->
   <script>
-    let SUPABASE_URL = localStorage.getItem('nyonya_supabase_url') || '';
-    let SUPABASE_KEY = localStorage.getItem('nyonya_supabase_key') || '';
+    // Ganti dua nilai ini dengan Project URL dan Publishable/Anon key Supabase Anda.
+    // Jangan pernah memasukkan service_role key ke file frontend.
+    const DEFAULT_SUPABASE_URL = 'https://miendexhmlmwyknjevui.supabase.co';
+    const DEFAULT_SUPABASE_KEY = 'sb_publishable_fpaZwZ-bWp_41u6z_FF1XQ_cESYDE29';
+
+    let SUPABASE_URL = localStorage.getItem('nyonya_supabase_url') || DEFAULT_SUPABASE_URL;
+    let SUPABASE_KEY = localStorage.getItem('nyonya_supabase_key') || DEFAULT_SUPABASE_KEY;
     let supabaseClient = null;
 
-    if(SUPABASE_URL && SUPABASE_KEY) {
+    function isSupabaseConfigured() {
+      return SUPABASE_URL && SUPABASE_KEY &&
+        SUPABASE_URL.startsWith('https://') &&
+        !SUPABASE_URL.includes('GANTI_DENGAN') &&
+        !SUPABASE_KEY.includes('GANTI_DENGAN');
+    }
+
+    function initializeSupabaseClient() {
+      if (!isSupabaseConfigured()) {
+        supabaseClient = null;
+        return false;
+      }
       try {
         supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-      } catch(e) { console.error('Supabase init error:', e); }
+        return true;
+      } catch(e) {
+        supabaseClient = null;
+        console.error('Supabase init error:', e);
+        return false;
+      }
     }
+
+    initializeSupabaseClient();
 
     const DEFAULT_STORE_CONFIG = { 
       name: "NYONYA TERASI TIBAN", 
@@ -952,8 +1014,8 @@
     async function testSupabaseConnection() {
       const url = document.getElementById('setting-supabase-url').value.trim();
       const key = document.getElementById('setting-supabase-key').value.trim();
-      if(!url || !key) {
-        showToast('Masukkan URL dan API Key Supabase dengan benar!', 'error');
+      if(!url || !key || !url.startsWith('https://') || url.includes('GANTI_DENGAN') || key.includes('GANTI_DENGAN')) {
+        showToast('Masukkan URL dan Publishable/Anon key Supabase yang benar!', 'error');
         return;
       }
       try {
@@ -1357,10 +1419,115 @@
     function renderMenuManagementTable() {
       const tbody = document.getElementById('menu-mgmt-table-body'); tbody.innerHTML = '';
       PRODUCTS.forEach(p => {
-        tbody.innerHTML += `<tr class="hover:bg-slate-50"><td class="p-3 font-bold">${p.emoji} ${p.name}</td><td class="p-3 text-slate-500">${p.category}</td><td class="p-3 font-mono">Rp ${p.price.toLocaleString('id-ID')}</td><td class="p-3 text-slate-500">${p.recipe?.length||0} Bahan</td><td class="p-3 text-right"></td></tr>`;
+        tbody.innerHTML += `<tr class="hover:bg-slate-50"><td class="p-3 font-bold">${p.emoji} ${p.name}</td><td class="p-3 text-slate-500">${p.category}</td><td class="p-3 font-mono">Rp ${p.price.toLocaleString('id-ID')}</td><td class="p-3 text-slate-500">${p.recipe?.length||0} Bahan</td><td class="p-3 text-right whitespace-nowrap"><button onclick="openEditProductModal('${p.id}')" class="text-indigo-600 font-bold mr-3">Edit</button><button onclick="deleteProduct('${p.id}')" class="text-red-600 font-bold">Hapus</button></td></tr>`;
       });
     }
-    function openAddProductModal() { showToast('Fitur tambah menu', 'info'); }
+    function openAddProductModal() {
+      document.getElementById('product-modal-title').textContent = 'Tambah Menu Baru';
+      document.getElementById('edit-product-id').value = '';
+      document.getElementById('product-name-input').value = '';
+      document.getElementById('product-category-input').value = 'Makanan Utama';
+      document.getElementById('product-price-input').value = '';
+      document.getElementById('product-emoji-input').value = '🍽️';
+      document.getElementById('product-available-input').checked = true;
+      const modal = document.getElementById('add-product-modal');
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+    }
+
+    function openEditProductModal(id) {
+      const product = PRODUCTS.find(item => item.id === id);
+      if (!product) return;
+      document.getElementById('product-modal-title').textContent = 'Edit Menu';
+      document.getElementById('edit-product-id').value = product.id;
+      document.getElementById('product-name-input').value = product.name;
+      document.getElementById('product-category-input').value = product.category;
+      document.getElementById('product-price-input').value = product.price;
+      document.getElementById('product-emoji-input').value = product.emoji || '🍽️';
+      document.getElementById('product-available-input').checked = product.available !== false;
+      const modal = document.getElementById('add-product-modal');
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+    }
+
+    function closeAddProductModal() {
+      const modal = document.getElementById('add-product-modal');
+      modal.classList.add('hidden');
+      modal.classList.remove('flex');
+    }
+
+    async function saveProduct() {
+      const id = document.getElementById('edit-product-id').value.trim();
+      const name = document.getElementById('product-name-input').value.trim();
+      const category = document.getElementById('product-category-input').value.trim();
+      const price = Number(document.getElementById('product-price-input').value);
+      const emoji = document.getElementById('product-emoji-input').value.trim() || '🍽️';
+      const available = document.getElementById('product-available-input').checked;
+
+      if (!name || !category || !Number.isFinite(price) || price <= 0) {
+        showToast('Nama, kategori, dan harga wajib diisi dengan benar', 'error');
+        return;
+      }
+
+      const existing = id ? PRODUCTS.find(item => item.id === id) : null;
+      const product = {
+        id: id || 'p_' + Date.now(),
+        name,
+        category,
+        price,
+        emoji,
+        available,
+        recipe: existing?.recipe || []
+      };
+
+      if (!supabaseClient) {
+        showToast('Supabase belum tersambung', 'error');
+        return;
+      }
+
+      try {
+        const { error } = await supabaseClient
+          .from('products')
+          .upsert({ ...product, updated_at: new Date().toISOString() }, { onConflict: 'id' });
+        if (error) throw error;
+
+        const index = PRODUCTS.findIndex(item => item.id === product.id);
+        if (index >= 0) PRODUCTS[index] = product;
+        else PRODUCTS.push(product);
+        localStorage.setItem('nyonya_products', JSON.stringify(PRODUCTS));
+        renderProducts();
+        renderProductsTable();
+        renderMenuManagementTable();
+        closeAddProductModal();
+        showToast(id ? 'Menu berhasil diperbarui' : 'Menu berhasil ditambahkan', 'success');
+      } catch (error) {
+        console.error('Gagal menyimpan menu:', error);
+        showToast('Gagal menyimpan menu ke Supabase: ' + error.message, 'error');
+      }
+    }
+
+    async function deleteProduct(id) {
+      const product = PRODUCTS.find(item => item.id === id);
+      if (!product) return;
+      if (!confirm(`Hapus menu "${product.name}"?`)) return;
+      if (!supabaseClient) {
+        showToast('Supabase belum tersambung', 'error');
+        return;
+      }
+      try {
+        const { error } = await supabaseClient.from('products').delete().eq('id', id);
+        if (error) throw error;
+        PRODUCTS = PRODUCTS.filter(item => item.id !== id);
+        localStorage.setItem('nyonya_products', JSON.stringify(PRODUCTS));
+        renderProducts();
+        renderProductsTable();
+        renderMenuManagementTable();
+        showToast('Menu berhasil dihapus', 'success');
+      } catch (error) {
+        console.error('Gagal menghapus menu:', error);
+        showToast('Gagal menghapus menu: ' + error.message, 'error');
+      }
+    }
 
     function renderCategoriesTable() {
       const tbody = document.getElementById('categories-table-body'); tbody.innerHTML = '';
