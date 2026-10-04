@@ -1155,6 +1155,9 @@
       updateActiveBillsCount();
       updateSupabaseStatusUI();
       await loadProductsFromSupabase();
+      await loadRawMaterialsFromSupabase();
+      await loadMembersFromSupabase();
+      await loadActiveBillsFromSupabase();
       subscribeToProductsRealtime();
       document.getElementById('setting-supabase-url').value = SUPABASE_URL;
       document.getElementById('setting-supabase-key').value = SUPABASE_KEY;
@@ -1217,61 +1220,47 @@
     }
 
     async function syncTransactionToSupabase(tx) {
-      if(!supabaseClient) return;
-      try {
-        await supabaseClient.from('transactions').insert([ {
-          trx_id: tx.id,
-          date: tx.date,
-          time: tx.time,
-          table_name: tx.table,
-          order_type: tx.orderType,
-          cashier: tx.cashier,
-          subtotal: tx.subtotal,
-          tax: tx.tax,
-          grand_total: tx.grandTotal,
-          payment_method: tx.paymentMethod,
-          status: tx.status || 'completed',
-          items: tx.items
-        }]);
-      } catch(e) { console.error('Supabase sync error:', e); }
-    }
-
-    function setCategoryFilter(cat) {
-      currentCategoryFilter = cat;
-      renderProducts();
-    }
-
-    function filterProducts() { renderProducts(); }
-
-    function getProductPrice(product, orderType = currentOrderType) {
-      if (orderType === 'Gojek') return Number(product.gojek_price) || Number(product.price) || 0;
-      if (orderType === 'Grab') return Number(product.grab_price) || Number(product.price) || 0;
-      return Number(product.price) || 0;
-    }
-
-    function renderProducts() {
-      const grid = document.getElementById('product-grid');
-      const search = document.getElementById('product-search-input').value.toLowerCase();
-      grid.innerHTML = '';
-      const filtered = PRODUCTS.filter(p => (currentCategoryFilter === 'Semua' || p.category === currentCategoryFilter) && p.name.toLowerCase().includes(search));
-      
-      filtered.forEach(p => {
-        const card = document.createElement('div');
-        card.className = `bg-white p-3.5 rounded-2xl border ${p.available ? 'border-slate-200 hover:border-brand-400 cursor-pointer' : 'border-red-200 bg-red-50/20 opacity-60'} flex flex-col justify-between transition group relative`;
-        card.innerHTML = `
-          <div>
-            <div class="text-3xl mb-2">${p.emoji}</div>
-            <span class="text-[10px] font-bold text-slate-400 uppercase">${p.category}</span>
-            <h4 class="font-extrabold text-xs text-slate-800 line-clamp-1">${p.name}</h4>
-          </div>
-          <div class="flex items-center justify-between mt-3 pt-2 border-t border-slate-100">
-            <span class="font-mono font-extrabold text-xs text-brand-600">Rp ${getProductPrice(p, currentOrderType).toLocaleString('id-ID')}</span>
-            <button onclick="addToCart('${p.id}')" ${!p.available ? 'disabled' : ''} class="w-7 h-7 rounded-xl bg-slate-900 group-hover:bg-brand-600 text-white flex items-center justify-center text-xs"><i class="fa-solid fa-plus"></i></button>
-          </div>
-        `;
-        if(p.available) card.onclick = (e) => { if(e.target.tagName !== 'BUTTON') addToCart(p.id); };
-        grid.appendChild(card);
+      if (!supabaseClient) throw new Error('Supabase belum tersambung');
+      const summary = getPaymentBreakdown();
+      const { data, error } = await supabaseClient.rpc('checkout_atomic', {
+        p_trx_id: tx.id,
+        p_order_type: tx.orderType,
+        p_table_name: tx.table,
+        p_items: CART.map(item => ({ id: item.id, qty: item.qty })),
+        p_payment_method: tx.paymentMethod,
+        p_cash_given: tx.cashGiven,
+        p_tax_enabled: document.getElementById('tax-toggle-checkbox').checked,
+        p_service_rate: summary.serviceRate,
+        p_discount_rate: summary.discountRate,
+        p_member_id: document.getElementById('member-selector').value || null
       });
+      if (error) throw error;
+      return data;
+    }
+
+    async function loadRawMaterialsFromSupabase() {
+      if (!supabaseClient) return;
+      const { data, error } = await supabaseClient.from('raw_materials').select('id,name,category,stock,unit,cost').order('name').limit(500);
+      if (error) throw error;
+      RAW_MATERIALS = data || [];
+      renderRawMaterialsTable();
+    }
+
+    async function loadMembersFromSupabase() {
+      if (!supabaseClient) return;
+      const { data, error } = await supabaseClient.from('members').select('id,name,phone,points').order('name').limit(1000);
+      if (error) throw error;
+      MEMBERS = data || [];
+      renderMemberDropdown();
+    }
+
+    async function loadActiveBillsFromSupabase() {
+      if (!supabaseClient) return;
+      const { data, error } = await supabaseClient.from('active_bills').select('table_name,order_type,items,order_time').limit(500);
+      if (error) throw error;
+      ACTIVE_BILLS = {};
+      (data || []).forEach(bill => { ACTIVE_BILLS[bill.table_name] = { table: bill.table_name, orderType: bill.order_type, items: bill.items || [], time: bill.order_time || '' }; });
+      updateActiveBillsCount();
     }
 
     function updateOrderTypeUI() {
@@ -1423,9 +1412,13 @@
     function setExactCash() { document.getElementById('cash-given-input').value = calculateGrandTotal(); calculateCashChange(); }
     function addCashGiven(amt) { const input = document.getElementById('cash-given-input'); input.value = (parseFloat(input.value) || 0) + amt; calculateCashChange(); }
 
-    function sendToKitchen() {
+    async function sendToKitchen() {
       if(CART.length === 0) { showToast('Keranjang kosong!', 'error'); return; }
-      ACTIVE_BILLS[currentTable] = { table: currentTable, orderType: currentOrderType, items: JSON.parse(JSON.stringify(CART)), time: new Date().toLocaleTimeString() };
+      const bill = { table: currentTable, orderType: currentOrderType, items: JSON.parse(JSON.stringify(CART)), time: new Date().toLocaleTimeString() };
+      if (!supabaseClient) { showToast('Supabase belum tersambung', 'error'); return; }
+      const { error } = await supabaseClient.from('active_bills').upsert({ table_name: currentTable, order_type: currentOrderType, items: bill.items, order_time: bill.time, updated_at: new Date().toISOString() }, { onConflict: 'table_name' });
+      if (error) { showToast('Bill dapur gagal disimpan: ' + error.message, 'error'); return; }
+      ACTIVE_BILLS[currentTable] = bill;
       localStorage.setItem('nyonya_active_bills', JSON.stringify(ACTIVE_BILLS));
       updateActiveBillsCount();
       renderTableOptions();
@@ -1474,7 +1467,7 @@
       renderCart(); closeRecallBillsModal(); showToast(`Bill ${tbl} dipanggil`, 'success');
     }
 
-    function processCheckout() {
+    async function processCheckout() {
       if(CART.length === 0) { showToast('Keranjang kosong!', 'error'); return; }
       const summary = getPaymentBreakdown();
       const gt = summary.grandTotal;
@@ -1509,25 +1502,30 @@
         status: 'completed'
       };
       
+      let serverResult;
+      try {
+        serverResult = await syncTransactionToSupabase(trx);
+      } catch (error) {
+        console.error('Atomic checkout gagal:', error);
+        showToast('Checkout gagal dan tidak disimpan: ' + error.message, 'error');
+        return;
+      }
+      trx.subtotal = Number(serverResult.subtotal);
+      trx.tax = Number(serverResult.tax);
+      trx.serviceCharge = Number(serverResult.service_charge);
+      trx.discount = Number(serverResult.discount);
+      trx.memberDiscount = Number(serverResult.member_discount);
+      trx.grandTotal = Number(serverResult.grand_total);
+      trx.cashGiven = Number(serverResult.cash_given);
+      trx.change = Number(serverResult.change);
       TRANSACTION_HISTORY.unshift(trx);
       localStorage.setItem('nyonya_tx_history', JSON.stringify(TRANSACTION_HISTORY));
-      syncTransactionToSupabase(trx);
 
-      // Deduct Recipe Raw Materials Stock
-      CART.forEach(cartItem => {
-        const prod = PRODUCTS.find(p => p.id === cartItem.id);
-        if(prod && prod.recipe) {
-          prod.recipe.forEach(rec => {
-            const rm = RAW_MATERIALS.find(r => r.id === rec.rawId);
-            if(rm) {
-              rm.stock = Math.max(0, rm.stock - (rec.qty * cartItem.qty));
-            }
-          });
-        }
-      });
-      localStorage.setItem('nyonya_raw_materials', JSON.stringify(RAW_MATERIALS));
-
-      if(ACTIVE_BILLS[currentTable]) { delete ACTIVE_BILLS[currentTable]; localStorage.setItem('nyonya_active_bills', JSON.stringify(ACTIVE_BILLS)); updateActiveBillsCount(); renderTableOptions(); }
+      if(ACTIVE_BILLS[currentTable]) {
+        await supabaseClient.from('active_bills').delete().eq('table_name', currentTable);
+        delete ACTIVE_BILLS[currentTable]; localStorage.setItem('nyonya_active_bills', JSON.stringify(ACTIVE_BILLS)); updateActiveBillsCount(); renderTableOptions();
+      }
+      await loadRawMaterialsFromSupabase();
 
       document.getElementById('receipt-content').innerHTML = `
         <div class="text-center pb-2 border-b border-dashed">
@@ -1968,7 +1966,16 @@
     function confirmMoveTable() { closeMoveTableModal(); showToast('Pindah meja sukses', 'success'); }
     function openAddMemberModal() { document.getElementById('add-member-modal').classList.remove('hidden'); }
     function closeAddMemberModal() { document.getElementById('add-member-modal').classList.add('hidden'); }
-    function saveNewMember() { closeAddMemberModal(); showToast('Member ditambah', 'success'); }
+    async function saveNewMember() {
+      const name = document.getElementById('new-member-name').value.trim();
+      const phone = document.getElementById('new-member-phone').value.trim();
+      if (!name || !phone) { showToast('Nama dan nomor telepon wajib diisi', 'error'); return; }
+      if (!supabaseClient) { showToast('Supabase belum tersambung', 'error'); return; }
+      const member = { id: 'm_' + Date.now(), name, phone, points: 0 };
+      const { error } = await supabaseClient.from('members').insert(member);
+      if (error) { showToast('Gagal menyimpan member: ' + error.message, 'error'); return; }
+      MEMBERS.push(member); renderMemberDropdown(); closeAddMemberModal(); showToast('Member berhasil ditambah di Supabase', 'success');
+    }
     function loadPrinterSettings() {
       const name = document.getElementById('setting-printer-name');
       const paper = document.getElementById('setting-printer-paper');
