@@ -1218,6 +1218,16 @@
       }
       try {
         const client = window.supabase.createClient(url, key);
+        // Re-attach the current authenticated session to the newly created client.
+        // Without this, testing a connection after anonymous policies are closed
+        // silently downgrades the request to anon and product loading falls back local.
+        if (currentAuthSession?.access_token && currentAuthSession?.refresh_token) {
+          const { error: sessionError } = await client.auth.setSession({
+            access_token: currentAuthSession.access_token,
+            refresh_token: currentAuthSession.refresh_token
+          });
+          if (sessionError) throw sessionError;
+        }
         const { data, error } = await client.from('transactions').select('id').limit(1);
         if(error && error.code !== 'PGRST116') {
           throw error;
