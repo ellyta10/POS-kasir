@@ -1123,6 +1123,7 @@
       updateLiveClock();
       renderProducts();
       renderTableOptions();
+      updateOrderTypeUI();
       renderMemberDropdown();
       renderCart();
       updateActiveBillsCount();
@@ -1245,12 +1246,24 @@
       });
     }
 
+    function updateOrderTypeUI() {
+      const activeClass = 'py-1.5 text-xs font-bold rounded-lg transition bg-white text-slate-800 shadow-sm';
+      const inactiveClass = 'py-1.5 text-xs font-bold rounded-lg transition text-slate-600 hover:text-slate-800';
+      [['Dine In', 'type-dine-in'], ['Takeaway', 'type-takeaway'], ['Gojek', 'type-gojek'], ['Grab', 'type-grab']].forEach(([type, id]) => {
+        const button = document.getElementById(id);
+        if (button) button.className = type === currentOrderType ? activeClass : inactiveClass;
+      });
+      const tableWrapper = document.getElementById('table-select-wrapper');
+      if (tableWrapper) tableWrapper.classList.toggle('hidden', currentOrderType !== 'Dine In');
+    }
+
     function setOrderType(type) {
       currentOrderType = type;
       CART.forEach(item => {
         const product = PRODUCTS.find(p => p.id === item.id);
         if (product) item.price = getProductPrice(product, currentOrderType);
       });
+      updateOrderTypeUI();
       renderProducts();
       renderCart();
     }
@@ -1380,7 +1393,7 @@
       const ktContent = document.getElementById('kitchen-ticket-content');
       ktContent.innerHTML = `
         <div class="text-center pb-2 border-b border-dashed"><h4 class="font-extrabold text-sm">${storeConfig.name}</h4><p class="text-[10px]">TIKET DAPUR (KOKI)</p></div>
-        <div class="py-1"><span>Meja: <strong>${currentTable}</strong> (${currentOrderType})</span><br><span>Waktu: ${new Date().toLocaleTimeString()} | Kasir: ${currentUser.name}</span></div>
+        <div class="py-1"><span>${currentOrderType === 'Dine In' ? `Meja: <strong>${currentTable}</strong>` : `Channel: <strong>${currentOrderType}</strong>`}</span><br><span>Waktu: ${new Date().toLocaleTimeString()} | Kasir: ${currentUser.name}</span></div>
         <div class="py-2 border-y border-dashed space-y-1">
           ${CART.map(i=>`<div><strong>${i.qty}x ${i.name}</strong>${i.notes ? `<br><span class="text-red-600 pl-3">Catatan: ${i.notes}</span>`:''}</div>`).join('')}
         </div>
@@ -1414,6 +1427,8 @@
     function closeRecallBillsModal() { document.getElementById('recall-bills-modal').classList.add('hidden'); }
     function recallSpecificBill(tbl) {
       currentTable = tbl; document.getElementById('table-selector').value = tbl;
+      currentOrderType = ACTIVE_BILLS[tbl].orderType || 'Dine In';
+      updateOrderTypeUI();
       CART = JSON.parse(JSON.stringify(ACTIVE_BILLS[tbl].items));
       renderCart(); closeRecallBillsModal(); showToast(`Bill ${tbl} dipanggil`, 'success');
     }
@@ -1435,7 +1450,7 @@
         id: trxId, 
         date: new Date().toISOString().split('T')[0], 
         time: new Date().toLocaleTimeString(), 
-        table: currentTable, 
+        table: currentOrderType === 'Dine In' ? currentTable : '-',
         orderType: currentOrderType, 
         cashier: currentUser.name, 
         items: JSON.parse(JSON.stringify(CART)),
@@ -1481,7 +1496,7 @@
         <div class="py-1 text-[11px]">
           <span>TRX: <strong>${trxId}</strong></span><br>
           <span>Tanggal: ${trx.date} | ${trx.time}</span><br>
-          <span>Meja: ${currentTable} (${currentOrderType}) | Kasir: ${currentUser.name}</span>
+          <span>${currentOrderType === 'Dine In' ? `Meja: ${currentTable}` : `Channel: ${currentOrderType}`} | Kasir: ${currentUser.name}</span>
         </div>
         <div class="py-2 border-y border-dashed space-y-1">
           ${trx.items.map(i=>`<div class="flex justify-between"><span>${i.qty}x ${i.name}</span><span>Rp ${(i.price*i.qty).toLocaleString('id-ID')}</span></div>`).join('')}
