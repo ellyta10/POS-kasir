@@ -482,12 +482,24 @@
       </div>
 
       <div class="p-6 space-y-4 overflow-y-auto max-h-[65vh]">
-        <div class="bg-amber-50 border border-amber-200 p-3.5 rounded-xl flex items-center justify-between">
+        <div id="shift-status-panel" class="bg-amber-50 border border-amber-200 p-3.5 rounded-xl flex items-center justify-between gap-3">
           <div>
             <span class="text-xs font-bold text-amber-800 uppercase block">Status Shift</span>
-            <span class="text-sm font-black text-amber-900">SHIFT AKTIF (Buka)</span>
+            <span id="shift-status-label" class="text-sm font-black text-amber-900">Memeriksa...</span>
           </div>
-          <span class="text-xs text-amber-700 font-mono">Mulai: 08:00 WIB</span>
+          <span id="shift-start-label" class="text-xs text-amber-700 font-mono"></span>
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 items-end">
+          <label class="text-xs font-bold text-slate-600">Kas awal
+            <input id="shift-opening-cash" type="number" min="0" step="1000" value="500000" class="mt-1 w-full px-3 py-2 border border-slate-200 rounded-xl font-mono">
+          </label>
+          <button onclick="startCashSession()" class="px-4 py-2 bg-emerald-600 text-white text-xs font-bold rounded-xl">Buka Shift</button>
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 items-end">
+          <label class="text-xs font-bold text-slate-600">Kas fisik saat tutup
+            <input id="shift-closing-cash" type="number" min="0" step="1000" placeholder="Masukkan kas aktual" class="mt-1 w-full px-3 py-2 border border-slate-200 rounded-xl font-mono">
+          </label>
+          <button onclick="finishCashSession()" class="px-4 py-2 bg-red-600 text-white text-xs font-bold rounded-xl">Tutup Shift</button>
         </div>
 
         <div class="grid grid-cols-2 gap-3 text-xs">
@@ -940,6 +952,7 @@
     initializeSupabaseClient();
     let currentAuthSession = null;
     let currentUserRole = null;
+    let CURRENT_CASH_SESSION = null;
     let productsRealtimeChannel = null;
     let appStarted = false;
 
@@ -1158,6 +1171,7 @@
       await loadRawMaterialsFromSupabase();
       await loadMembersFromSupabase();
       await loadActiveBillsFromSupabase();
+      await loadCurrentCashSession();
       subscribeToProductsRealtime();
       document.getElementById('setting-supabase-url').value = SUPABASE_URL;
       document.getElementById('setting-supabase-key').value = SUPABASE_KEY;
@@ -1232,7 +1246,8 @@
         p_tax_enabled: document.getElementById('tax-toggle-checkbox').checked,
         p_service_rate: summary.serviceRate,
         p_discount_rate: summary.discountRate,
-        p_member_id: document.getElementById('member-selector').value || null
+        p_member_id: document.getElementById('member-selector').value || null,
+        p_cash_session_id: CURRENT_CASH_SESSION?.id || null
       });
       if (error) throw error;
       return data;
@@ -1469,6 +1484,7 @@
 
     async function processCheckout() {
       if(CART.length === 0) { showToast('Keranjang kosong!', 'error'); return; }
+      if (!CURRENT_CASH_SESSION) { showToast('Buka shift kasir terlebih dahulu', 'error'); openShiftModal(); return; }
       const summary = getPaymentBreakdown();
       const gt = summary.grandTotal;
       const given = currentPaymentMethod === 'Cash' ? (parseFloat(document.getElementById('cash-given-input').value) || 0) : gt;
@@ -1547,7 +1563,7 @@
           <div>Service Charge (${(trx.serviceRate * 100).toFixed(0)}%): Rp ${trx.serviceCharge.toLocaleString('id-ID')}</div>
           <div>Diskon: - Rp ${trx.discount.toLocaleString('id-ID')}</div>
           <div>Diskon Member: - Rp ${trx.memberDiscount.toLocaleString('id-ID')}</div>
-          <div class="text-sm font-black text-brand-600 pt-1 border-t">TOTAL BAYAR: Rp ${gt.toLocaleString('id-ID')}</div>
+          <div class="text-sm font-black text-brand-600 pt-1 border-t">TOTAL BAYAR: Rp ${trx.grandTotal.toLocaleString('id-ID')}</div>
           <div class="pt-1">Metode: ${currentPaymentMethod}</div>
           <div>Dibayar: Rp ${trx.cashGiven.toLocaleString('id-ID')}</div>
           <div class="text-brand-600">Kembalian: Rp ${trx.change.toLocaleString('id-ID')}</div>
@@ -1954,11 +1970,54 @@
       URL.revokeObjectURL(url);
       showToast('Export CSV berhasil', 'success');
     }
-    function openShiftModal() { 
-      document.getElementById('shift-cash-total').textContent = `Rp ${TRANSACTION_HISTORY.filter(t=>t.paymentMethod==='Cash').reduce((a,b)=>a+b.grandTotal,0).toLocaleString('id-ID')}`;
+    async function loadCurrentCashSession() {
+      if (!supabaseClient || !currentAuthSession) return;
+      const { data, error } = await supabaseClient.from('cash_sessions').select('id,status,opening_cash,opened_at,closed_at,closing_cash,expected_cash,difference').eq('user_id', currentAuthSession.user.id).eq('status', 'open').order('opened_at', { ascending: false }).limit(1).maybeSingle();
+      if (error) { console.error('Gagal memuat shift:', error); return; }
+      CURRENT_CASH_SESSION = data || null;
+    }
+    function renderCashSessionUI() {
+      const label = document.getElementById('shift-status-label');
+      const start = document.getElementById('shift-start-label');
+      const panel = document.getElementById('shift-status-panel');
+      if (!label) return;
+      if (CURRENT_CASH_SESSION) {
+        label.textContent = 'SHIFT AKTIF (Buka)';
+        start.textContent = 'Mulai: ' + new Date(CURRENT_CASH_SESSION.opened_at).toLocaleString('id-ID');
+        panel.className = 'bg-emerald-50 border border-emerald-200 p-3.5 rounded-xl flex items-center justify-between gap-3';
+      } else {
+        label.textContent = 'SHIFT BELUM DIBUKA';
+        start.textContent = 'Checkout dikunci';
+        panel.className = 'bg-red-50 border border-red-200 p-3.5 rounded-xl flex items-center justify-between gap-3';
+      }
+    }
+    async function startCashSession() {
+      if (!supabaseClient) return showToast('Supabase belum tersambung', 'error');
+      const opening = Number(document.getElementById('shift-opening-cash').value || 0);
+      const { data, error } = await supabaseClient.rpc('open_cash_session', { p_opening_cash: opening });
+      if (error) return showToast('Gagal membuka shift: ' + error.message, 'error');
+      CURRENT_CASH_SESSION = data;
+      renderCashSessionUI();
+      showToast('Shift kasir berhasil dibuka', 'success');
+    }
+    async function finishCashSession() {
+      if (!CURRENT_CASH_SESSION) return showToast('Tidak ada shift aktif', 'error');
+      const raw = document.getElementById('shift-closing-cash').value.trim();
+      if (raw === '') return showToast('Masukkan kas fisik saat tutup shift', 'error');
+      const { data, error } = await supabaseClient.rpc('close_cash_session', { p_session_id: CURRENT_CASH_SESSION.id, p_actual_cash: Number(raw) });
+      if (error) return showToast('Gagal menutup shift: ' + error.message, 'error');
+      CURRENT_CASH_SESSION = null;
+      renderCashSessionUI();
+      showToast(`Shift ditutup. Selisih: Rp ${Number(data.difference || 0).toLocaleString('id-ID')}`, 'success');
+    }
+    async function openShiftModal() {
+      await loadCurrentCashSession();
+      document.getElementById('shift-cash-total').textContent = CURRENT_CASH_SESSION ? `Rp ${CURRENT_CASH_SESSION.opening_cash.toLocaleString('id-ID')}` : 'Rp 0';
       document.getElementById('shift-noncash-total').textContent = `Rp ${TRANSACTION_HISTORY.filter(t=>t.paymentMethod!=='Cash').reduce((a,b)=>a+b.grandTotal,0).toLocaleString('id-ID')}`;
       document.getElementById('shift-trx-count').textContent = TRANSACTION_HISTORY.length;
-      document.getElementById('shift-modal').classList.remove('hidden'); 
+      document.getElementById('shift-opening-cash').value = CURRENT_CASH_SESSION?.opening_cash || 500000;
+      renderCashSessionUI();
+      document.getElementById('shift-modal').classList.remove('hidden');
     }
     function closeShiftModal() { document.getElementById('shift-modal').classList.add('hidden'); }
     function openMoveTableModal() { document.getElementById('move-from-table').value = currentTable; document.getElementById('move-table-modal').classList.remove('hidden'); }
