@@ -73,6 +73,9 @@
       #cart-panel .mobile-cart-handle, #mobile-cart-backdrop, #mobile-cart-toggle { display: none !important; }
     }
 
+    body.auth-locked > *:not(#auth-gate) { display: none !important; }
+    body.auth-ready #auth-gate { display: none !important; }
+
     @media print {
       body * { visibility: hidden; }
       .printable-area, .printable-area * { visibility: visible; }
@@ -82,7 +85,22 @@
   </style>
 </head>
 
-<body class="bg-slate-100 font-sans text-slate-800 antialiased min-h-[100dvh] flex flex-col overflow-x-hidden">
+<body class="auth-locked bg-slate-100 font-sans text-slate-800 antialiased min-h-[100dvh] flex flex-col overflow-x-hidden">
+  <div id="auth-gate" class="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950 p-4">
+    <form id="auth-form" class="w-full max-w-sm rounded-2xl bg-white p-6 shadow-2xl" onsubmit="signInAdmin(event)">
+      <div class="mb-5 text-center">
+        <div class="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-brand-600 text-2xl text-white">🔐</div>
+        <h2 class="text-lg font-black text-slate-900">Login POS Kasir</h2>
+        <p class="mt-1 text-xs text-slate-500">Masuk dengan akun Supabase Auth untuk mengakses aplikasi.</p>
+      </div>
+      <label class="mb-1 block text-xs font-bold text-slate-600">Email admin</label>
+      <input id="auth-email" type="email" autocomplete="username" required class="mb-3 w-full rounded-xl border border-slate-200 px-3 py-3 text-sm" placeholder="admin@restoran.com">
+      <label class="mb-1 block text-xs font-bold text-slate-600">Password</label>
+      <input id="auth-password" type="password" autocomplete="current-password" required class="mb-4 w-full rounded-xl border border-slate-200 px-3 py-3 text-sm" placeholder="Password Supabase">
+      <button id="auth-submit" type="submit" class="w-full rounded-xl bg-brand-600 px-4 py-3 text-sm font-extrabold text-white">Masuk</button>
+      <p id="auth-message" class="mt-3 min-h-5 text-center text-xs font-bold text-red-600"></p>
+    </form>
+  </div>
 
   <!-- TOP HEADER NAVIGATION -->
   <header class="bg-slate-900 text-white px-4 py-2.5 flex items-center justify-between shadow-md z-30 shrink-0">
@@ -127,13 +145,13 @@
       </button>
 
       <!-- MANAGEMENT / ADMIN MODAL -->
-      <button onclick="checkAdminAccess('management')" class="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold flex items-center gap-1.5 transition border border-slate-700 whitespace-nowrap active:scale-95">
+      <button id="admin-management-button" onclick="checkAdminAccess('management')" class="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold flex items-center gap-1.5 transition border border-slate-700 whitespace-nowrap active:scale-95">
         <i class="fa-solid fa-boxes-stacked text-indigo-400"></i>
         <span>Stok & Menu</span>
       </button>
 
       <!-- REPORTS ANALYTICS BUTTON -->
-      <button onclick="checkAdminAccess('reports')" class="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold flex items-center gap-1.5 transition border border-slate-700 whitespace-nowrap active:scale-95">
+      <button id="admin-reports-button" onclick="checkAdminAccess('reports')" class="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold flex items-center gap-1.5 transition border border-slate-700 whitespace-nowrap active:scale-95">
         <i class="fa-solid fa-chart-pie text-emerald-400"></i>
         <span>Laporan</span>
       </button>
@@ -731,13 +749,16 @@
               <button onclick="saveStoreSettings()" class="px-4 py-2 bg-slate-800 hover:bg-slate-900 text-white text-xs font-bold rounded-xl">Simpan Pengaturan Struk</button>
             </div>
 
-            <h4 class="font-bold text-sm text-slate-800 border-b pt-4 pb-2">Ubah Password / PIN Admin</h4>
+            <h4 id="admin-account-heading" class="font-bold text-sm text-slate-800 border-b pt-4 pb-2">Akun Admin Supabase</h4>
             <div class="space-y-3">
+              <p id="auth-user-email" class="text-xs font-semibold text-slate-500"></p>
               <div>
-                <label class="text-xs font-bold text-slate-600 block mb-1">PIN Admin Baru:</label>
-                <input type="password" id="setting-admin-pin" maxlength="6" placeholder="Minimal 4 digit..." class="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs font-bold font-mono">
+                <label class="text-xs font-bold text-slate-600 block mb-1">Password Admin Baru</label>
+                <input type="password" id="setting-admin-password" minlength="8" autocomplete="new-password" placeholder="Minimal 8 karakter" class="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs font-bold">
               </div>
-              <button onclick="saveAdminPin()" class="px-4 py-2 bg-slate-800 hover:bg-slate-900 text-white text-xs font-bold rounded-xl">Simpan PIN Baru</button>
+              <button onclick="changeAdminPassword()" class="px-4 py-2 bg-slate-800 hover:bg-slate-900 text-white text-xs font-bold rounded-xl">Ubah Password Global</button>
+              <button onclick="signOutAdmin()" class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded-xl">Keluar dari Semua Akses Perangkat Ini</button>
+              <p class="text-[10px] text-slate-400">Password disimpan oleh Supabase Auth dan berlaku di semua perangkat. Jangan gunakan service_role key di frontend.</p>
             </div>
           </div>
         </div>
@@ -908,6 +929,9 @@
     }
 
     initializeSupabaseClient();
+    let currentAuthSession = null;
+    let currentUserRole = null;
+    let appStarted = false;
 
     const DEFAULT_STORE_CONFIG = { 
       name: "NYONYA TERASI TIBAN", 
@@ -1012,6 +1036,92 @@
     let pendingActionAfterPin = null;
 
     window.onload = async function() {
+      await initializeAuth();
+    };
+
+    async function initializeAuth() {
+      if (!supabaseClient) {
+        showAuthMessage('Konfigurasi Supabase belum tersedia.');
+        return;
+      }
+      const { data, error } = await supabaseClient.auth.getSession();
+      if (error) {
+        showAuthMessage('Gagal membaca sesi login.');
+        return;
+      }
+      currentAuthSession = data.session;
+      if (currentAuthSession) await enterAuthenticatedApp(currentAuthSession);
+      supabaseClient.auth.onAuthStateChange(async (_event, session) => {
+        currentAuthSession = session;
+        if (session) await enterAuthenticatedApp(session);
+        else {
+          appStarted = false;
+          document.body.classList.remove('auth-ready');
+          document.body.classList.add('auth-locked');
+        }
+      });
+    }
+
+    function showAuthMessage(message) {
+      const el = document.getElementById('auth-message');
+      if (el) el.textContent = message;
+    }
+
+    async function signInAdmin(event) {
+      event.preventDefault();
+      if (!supabaseClient) return showAuthMessage('Supabase belum terkonfigurasi.');
+      const email = document.getElementById('auth-email').value.trim();
+      const password = document.getElementById('auth-password').value;
+      const button = document.getElementById('auth-submit');
+      button.disabled = true;
+      button.textContent = 'Memeriksa...';
+      const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
+      button.disabled = false;
+      button.textContent = 'Masuk';
+      if (error) showAuthMessage('Login gagal: ' + error.message);
+      else showAuthMessage('');
+    }
+
+    async function loadCurrentUserRole(userId) {
+      const { data, error } = await supabaseClient
+        .from('profiles')
+        .select('user_id, email, role')
+        .eq('user_id', userId)
+        .single();
+      if (error) throw error;
+      if (!data || !['admin', 'cashier'].includes(data.role)) throw new Error('Role akun belum diatur');
+      currentUserRole = data.role;
+      return data;
+    }
+
+    function updateRoleUI() {
+      const adminOnly = currentUserRole !== 'admin';
+      ['admin-management-button', 'admin-reports-button'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.classList.toggle('hidden', adminOnly);
+      });
+      const roleBadge = document.getElementById('header-user-role-badge');
+      const userName = document.getElementById('header-user-name');
+      if (roleBadge) roleBadge.textContent = currentUserRole === 'admin' ? 'Admin' : 'Kasir';
+      if (userName) userName.textContent = currentAuthSession?.user?.email || (currentUserRole === 'admin' ? 'Admin' : 'Kasir');
+    }
+
+    async function enterAuthenticatedApp(session) {
+      try {
+        await loadCurrentUserRole(session.user.id);
+      } catch (error) {
+        console.error('Role user tidak valid:', error);
+        showAuthMessage('Akun belum memiliki role admin/kasir. Hubungi admin.');
+        await supabaseClient.auth.signOut();
+        return;
+      }
+      document.body.classList.remove('auth-locked');
+      document.body.classList.add('auth-ready');
+      const userEmail = document.getElementById('auth-user-email');
+      if (userEmail) userEmail.textContent = 'Login: ' + (session.user.email || 'akun Supabase');
+      updateRoleUI();
+      if (appStarted) return;
+      appStarted = true;
       document.getElementById('header-resto-name').textContent = storeConfig.name;
       setInterval(updateLiveClock, 1000);
       updateLiveClock();
@@ -1022,7 +1132,6 @@
       updateActiveBillsCount();
       updateSupabaseStatusUI();
       await loadProductsFromSupabase();
-
       document.getElementById('setting-supabase-url').value = SUPABASE_URL;
       document.getElementById('setting-supabase-key').value = SUPABASE_KEY;
       document.getElementById('setting-store-name').value = storeConfig.name;
@@ -1030,7 +1139,7 @@
       document.getElementById('setting-store-phone').value = storeConfig.phone || '';
       document.getElementById('setting-store-footer').value = storeConfig.footer || '';
       loadPrinterSettings();
-    };
+    }
 
     function updateLiveClock() {
       const now = new Date();
@@ -1380,22 +1489,24 @@
     function openUserSwitchModal() { document.getElementById('user-switch-modal').classList.remove('hidden'); }
     function closeUserSwitchModal() { document.getElementById('user-switch-modal').classList.add('hidden'); }
     function switchUserRole(role) {
-      if(role === 'Admin') { 
-        closeUserSwitchModal(); 
-        checkAdminAccess('management'); 
-      } else { 
-        currentUser = { name: 'Kasir', role: 'Kasir' }; 
-        document.getElementById('header-user-name').textContent = 'Kasir'; 
-        document.getElementById('header-user-role-badge').textContent = 'Kasir';
-        closeUserSwitchModal(); 
-        showToast('Beralih ke Kasir', 'success'); 
-      }
+      showToast('Role ditentukan oleh akun Supabase Auth dan tidak dapat diganti dari browser.', 'error');
+      closeUserSwitchModal();
     }
 
     function checkAdminAccess(action) {
-      pendingActionAfterPin = action;
-      document.getElementById('admin-pin-input').value = '';
-      document.getElementById('pin-modal').classList.remove('hidden');
+      if (!currentAuthSession) {
+        document.body.classList.add('auth-locked');
+        return;
+      }
+      if (currentUserRole !== 'admin') {
+        showToast('Akses khusus admin. Akun kasir tidak dapat membuka menu ini.', 'error');
+        return;
+      }
+      currentUser = { name: currentAuthSession.user.email || 'Admin', role: 'Admin' };
+      document.getElementById('header-user-name').textContent = 'Admin';
+      document.getElementById('header-user-role-badge').textContent = 'Admin';
+      if (action === 'management') openManagementModal();
+      else if (action === 'reports') openReportsModal();
     }
     function closePinModal() { document.getElementById('pin-modal').classList.add('hidden'); }
     function verifyAdminPin() {
@@ -1622,6 +1733,29 @@
       localStorage.setItem('nyonya_store_config', JSON.stringify(storeConfig));
       document.getElementById('header-resto-name').textContent = storeConfig.name;
       showToast('Pengaturan struk berhasil disimpan', 'success');
+    }
+
+    async function changeAdminPassword() {
+      if (currentUserRole !== 'admin') {
+        showToast('Hanya admin yang dapat mengubah password', 'error');
+        return;
+      }
+      const password = document.getElementById('setting-admin-password').value;
+      if (!password || password.length < 8) {
+        showToast('Password minimal 8 karakter', 'error');
+        return;
+      }
+      const { error } = await supabaseClient.auth.updateUser({ password });
+      if (error) showToast('Gagal mengubah password: ' + error.message, 'error');
+      else {
+        document.getElementById('setting-admin-password').value = '';
+        showToast('Password admin berubah dan berlaku di semua perangkat', 'success');
+      }
+    }
+
+    async function signOutAdmin() {
+      const { error } = await supabaseClient.auth.signOut();
+      if (error) showToast('Gagal keluar: ' + error.message, 'error');
     }
 
     function saveAdminPin() {
