@@ -52,7 +52,11 @@
         right: 0;
         bottom: 0;
         width: 100%;
+        height: 88dvh;
         max-height: 88dvh;
+        overflow-y: auto;
+        overscroll-behavior: contain;
+        -webkit-overflow-scrolling: touch;
         transform: translateY(100%);
         transition: transform .2s ease;
         z-index: 40;
@@ -60,6 +64,8 @@
       }
       #cart-panel.is-open { transform: translateY(0); }
       #cart-panel .mobile-cart-handle { display: block; }
+      #cart-panel > .flex-1 { flex: 0 0 auto; max-height: 32dvh; min-height: 120px; }
+      #cart-panel > #payment-panel { max-height: none; overflow: visible; }
       #mobile-cart-backdrop { display: none; }
       #mobile-cart-backdrop.is-open { display: block; }
     }
@@ -227,7 +233,7 @@
       </div>
 
       <!-- SCROLLABLE BOTTOM SUMMARY & PAYMENT PANEL -->
-      <div class="p-3.5 border-t border-slate-300 bg-white flex flex-col gap-2.5 shrink-0 shadow-2xl max-h-[50vh] overflow-y-auto">
+      <div id="payment-panel" class="p-3.5 border-t border-slate-300 bg-white flex flex-col gap-2.5 shrink-0 shadow-2xl max-h-[50vh] overflow-y-auto">
         <!-- SUMMARY CALCULATIONS -->
         <div class="space-y-1 text-xs">
           <div class="flex justify-between text-slate-500">
@@ -822,6 +828,65 @@
       { id: 'p_2', name: 'Nasi Goreng Terasi Special', category: 'Makanan Utama', price: 25000, emoji: '🍛', available: true, recipe: [{ rawId: 'rm_2', qty: 0.2 }] }
     ];
 
+    async function loadProductsFromSupabase() {
+      if (!supabaseClient) {
+        console.log('Supabase belum terhubung. Menggunakan data lokal.');
+        return;
+      }
+
+      try {
+        const { data, error } = await supabaseClient
+          .from('products')
+          .select('id, name, category, price, emoji, available, recipe')
+          .order('name')
+          .limit(500);
+
+        if (error) throw error;
+
+        // Jika tabel cloud kosong, kirim data menu lokal satu kali.
+        if (!data || data.length === 0) {
+          const localProducts = PRODUCTS.map(product => ({
+            id: product.id,
+            name: product.name,
+            category: product.category,
+            price: Number(product.price) || 0,
+            emoji: product.emoji || '🍽️',
+            available: product.available !== false,
+            recipe: product.recipe || []
+          }));
+
+          if (localProducts.length > 0) {
+            const { error: uploadError } = await supabaseClient
+              .from('products')
+              .upsert(localProducts, { onConflict: 'id' });
+
+            if (uploadError) throw uploadError;
+            showToast('Menu lokal berhasil dikirim ke Supabase', 'success');
+          }
+          return;
+        }
+
+        // Jika cloud sudah memiliki data, cloud menjadi sumber utama.
+        PRODUCTS = data.map(product => ({
+          id: product.id,
+          name: product.name,
+          category: product.category,
+          price: Number(product.price) || 0,
+          emoji: product.emoji || '🍽️',
+          available: product.available !== false,
+          recipe: product.recipe || []
+        }));
+
+        localStorage.setItem('nyonya_products', JSON.stringify(PRODUCTS));
+        renderProducts();
+        renderProductsTable();
+        showToast('Menu berhasil dimuat dari Supabase', 'success');
+      } catch (error) {
+        console.error('Gagal memuat products:', error);
+        showToast('Menu cloud gagal dimuat. Menggunakan data lokal.', 'error');
+      }
+    }
+
     let CATEGORIES = JSON.parse(localStorage.getItem('nyonya_categories')) || ['Makanan Utama', 'Minuman', 'Snack', 'Dessert'];
     let TABLES = JSON.parse(localStorage.getItem('nyonya_tables')) || ['Meja 01', 'Meja 02', 'Meja 03', 'Meja 04', 'VIP 1'];
     let MEMBERS = JSON.parse(localStorage.getItem('nyonya_members')) || [{ id: 'm_1', name: 'Bapak Hendra', phone: '08111222333', points: 120 }];
@@ -837,7 +902,7 @@
     let currentCategoryFilter = 'Semua';
     let pendingActionAfterPin = null;
 
-    window.onload = function() {
+    window.onload = async function() {
       document.getElementById('header-resto-name').textContent = storeConfig.name;
       setInterval(updateLiveClock, 1000);
       updateLiveClock();
@@ -847,6 +912,7 @@
       renderCart();
       updateActiveBillsCount();
       updateSupabaseStatusUI();
+      await loadProductsFromSupabase();
 
       document.getElementById('setting-supabase-url').value = SUPABASE_URL;
       document.getElementById('setting-supabase-key').value = SUPABASE_KEY;
@@ -901,6 +967,7 @@
         localStorage.setItem('nyonya_supabase_key', key);
         updateSupabaseStatusUI();
         showToast('Koneksi Supabase Cloud Berhasil!', 'success');
+        await loadProductsFromSupabase();
       } catch(err) {
         showToast('Gagal terhubung ke Supabase: ' + err.message, 'error');
       }
@@ -1250,7 +1317,42 @@
         tbody.innerHTML += `<tr class="hover:bg-slate-50"><td class="p-3 font-bold">${p.emoji} ${p.name}</td><td class="p-3 text-slate-500">${p.category}</td><td class="p-3 font-mono">Rp ${p.price.toLocaleString('id-ID')}</td><td class="p-3 text-center"><button onclick="toggleProd('${p.id}')" class="px-2 py-0.5 rounded text-[10px] font-bold ${p.available?'bg-emerald-100 text-emerald-700':'bg-red-100 text-red-700'}">${p.available?'Tersedia':'Habis'}</button></td><td class="p-3 text-right"></td></tr>`;
       });
     }
-    function toggleProd(id) { const p = PRODUCTS.find(x=>x.id===id); if(p) { p.available = !p.available; localStorage.setItem('nyonya_products', JSON.stringify(PRODUCTS)); renderProducts(); renderProductsTable(); } }
+    async function toggleProd(id) {
+      const product = PRODUCTS.find(item => item.id === id);
+      if (!product) return;
+
+      product.available = !product.available;
+      localStorage.setItem('nyonya_products', JSON.stringify(PRODUCTS));
+      renderProducts();
+      renderProductsTable();
+
+      if (!supabaseClient) {
+        showToast('Status menu disimpan di perangkat ini saja', 'error');
+        return;
+      }
+
+      try {
+        const { error } = await supabaseClient
+          .from('products')
+          .update({
+            available: product.available,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', product.id);
+
+        if (error) throw error;
+
+        showToast(
+          product.available
+            ? 'Menu tersedia di semua perangkat'
+            : 'Menu ditandai habis di semua perangkat',
+          'success'
+        );
+      } catch (error) {
+        console.error('Gagal menyimpan status produk:', error);
+        showToast('Gagal sinkron status menu ke Supabase', 'error');
+      }
+    }
 
     function renderMenuManagementTable() {
       const tbody = document.getElementById('menu-mgmt-table-body'); tbody.innerHTML = '';
