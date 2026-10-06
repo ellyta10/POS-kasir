@@ -124,7 +124,7 @@
     <div class="flex items-center gap-3">
       <!-- LOGO NYONYA TERASI (TRANSPARENT BACKGROUND) -->
       <div class="w-10 h-10 rounded-xl overflow-hidden bg-white/10 flex items-center justify-center p-0.5 shadow-md border border-slate-700">
-        <img src="watermarked_img_4320917896144463203.jpg" alt="Logo Nyonya Terasi" class="w-full h-full object-contain filter drop-shadow" onerror="this.src='https://placehold.co/100x100/f97316/ffffff?text=NT'">
+        <img src="nyonya-terasi-logo.png" alt="Logo Nyonya Terasi" class="w-full h-full object-contain filter drop-shadow" onerror="this.src='https://placehold.co/100x100/f97316/ffffff?text=NT'">
       </div>
       <div>
         <h1 class="font-extrabold text-sm md:text-base leading-tight tracking-wide flex items-center gap-2">
@@ -139,7 +139,7 @@
       <!-- SUPABASE SYNC STATUS BADGE -->
       <div id="supabase-status-badge" class="px-2.5 py-1 rounded-xl bg-slate-800 text-slate-300 text-[10px] font-bold flex items-center gap-1.5 border border-slate-700" title="Status Supabase Cloud">
         <span id="supabase-dot" class="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span>
-        <span id="supabase-status-text">Cloud Sync (Local)</span>
+        <span id="supabase-status-text">Connected</span>
       </div>
 
       <!-- USER PROFILE SWITCHER (2 USERS: 1. KASIR, 2. ADMIN) -->
@@ -1181,10 +1181,10 @@
       const text = document.getElementById('supabase-status-text');
       if(supabaseClient) {
         dot.className = "w-2 h-2 rounded-full bg-emerald-500";
-        text.textContent = "Supabase Connected";
+        text.textContent = "Connected";
       } else {
         dot.className = "w-2 h-2 rounded-full bg-amber-500 animate-pulse";
-        text.textContent = "Cloud Sync (Local)";
+        text.textContent = "Offline";
       }
     }
 
