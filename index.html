@@ -791,6 +791,24 @@
       </div>
 
       <div class="flex-1 p-5 overflow-y-auto bg-slate-50 space-y-4">
+        <div class="bg-white p-3 rounded-2xl border border-slate-200 shadow-sm flex flex-wrap items-end gap-2">
+          <div>
+            <label for="report-period-select" class="block text-[10px] font-bold text-slate-500 uppercase mb-1">Periode laporan</label>
+            <select id="report-period-select" onchange="toggleReportCustomDates()" class="px-3 py-2 rounded-xl border border-slate-200 text-xs font-bold">
+              <option value="today">Hari ini</option>
+              <option value="yesterday">Kemarin</option>
+              <option value="week">Minggu ini</option>
+              <option value="month">Bulan ini</option>
+              <option value="custom">Custom</option>
+            </select>
+          </div>
+          <div id="report-custom-dates" class="hidden flex flex-wrap items-end gap-2">
+            <div><label for="report-start-date" class="block text-[10px] font-bold text-slate-500 uppercase mb-1">Dari</label><input id="report-start-date" type="date" class="px-3 py-2 rounded-xl border border-slate-200 text-xs"></div>
+            <div><label for="report-end-date" class="block text-[10px] font-bold text-slate-500 uppercase mb-1">Sampai</label><input id="report-end-date" type="date" class="px-3 py-2 rounded-xl border border-slate-200 text-xs"></div>
+          </div>
+          <button onclick="loadReportsFromSupabase()" class="px-4 py-2 bg-emerald-600 text-white text-xs font-bold rounded-xl">Terapkan</button>
+          <span id="report-period-label" class="text-[10px] text-slate-400 pb-2"></span>
+        </div>
         <div id="rep-view-summary" class="space-y-4">
           <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
             <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
@@ -2119,11 +2137,52 @@
       showToast('Transaksi berhasil di-void dan dicatat di audit log', 'success');
     }
 
+    function localDateString(date) {
+      const y = date.getFullYear();
+      const m = String(date.getMonth() + 1).padStart(2, '0');
+      const d = String(date.getDate()).padStart(2, '0');
+      return `${y}-${m}-${d}`;
+    }
+    function getReportDateRange() {
+      const now = new Date();
+      const today = localDateString(now);
+      const period = document.getElementById('report-period-select')?.value || 'today';
+      if (period === 'custom') {
+        const from = document.getElementById('report-start-date')?.value || today;
+        const to = document.getElementById('report-end-date')?.value || today;
+        return { from: from <= to ? from : to, to: from <= to ? to : from };
+      }
+      if (period === 'yesterday') {
+        const yesterday = new Date(now);
+        yesterday.setDate(yesterday.getDate() - 1);
+        const value = localDateString(yesterday);
+        return { from: value, to: value };
+      }
+      if (period === 'week') {
+        const start = new Date(now);
+        const day = start.getDay() || 7;
+        start.setDate(start.getDate() - day + 1);
+        return { from: localDateString(start), to: today };
+      }
+      if (period === 'month') {
+        return { from: `${today.slice(0, 7)}-01`, to: today };
+      }
+      return { from: today, to: today };
+    }
+    function toggleReportCustomDates() {
+      const custom = document.getElementById('report-period-select')?.value === 'custom';
+      document.getElementById('report-custom-dates')?.classList.toggle('hidden', !custom);
+    }
     async function loadReportsFromSupabase() {
       if (!supabaseClient) throw new Error('Supabase belum tersambung');
+      const range = getReportDateRange();
+      const periodLabel = document.getElementById('report-period-label');
+      if (periodLabel) periodLabel.textContent = `Data ${range.from} sampai ${range.to}`;
       const { data, error } = await supabaseClient
         .from('transactions')
         .select('trx_id,date,time,grand_total,order_type,payment_method,status,cashier,voided_at,void_reason')
+        .gte('date', range.from)
+        .lte('date', range.to)
         .order('date', { ascending: false })
         .limit(5000);
       if (error) throw error;
