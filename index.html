@@ -4,6 +4,13 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Kasir POS Nyonya Terasi Tiban</title>
+  <!--
+    PERBAIKAN BATCH 1 (Phase A, frontend):
+    1. Checkout: tombol dikunci saat proses + satu ID transaksi per keranjang (aman diulang)
+    2. Riwayat transaksi tidak lagi disimpan di localStorage; semua penulisan localStorage aman dari error kuota
+    3. Semua data yang masuk ke innerHTML di-escape (anti XSS); onclick inline tidak lagi berisi data
+    4. Kode PIN lama dihapus
+  -->
   <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
   <!-- FontAwesome Icons -->
@@ -552,26 +559,7 @@
     </div>
   </div>
 
-  <!-- MODAL: PIN VERIFICATION (2 USERS: 1. KASIR, 2. ADMIN) -->
-  <div id="pin-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
-    <div class="bg-white w-full max-w-sm rounded-2xl shadow-2xl flex flex-col overflow-hidden animate-in fade-in zoom-in duration-200">
-      <div class="bg-slate-900 text-white p-4 flex justify-between items-center">
-        <div class="flex items-center gap-2">
-          <i class="fa-solid fa-lock text-brand-400"></i>
-          <h3 id="pin-modal-title" class="font-bold text-sm">Verifikasi Akses Admin</h3>
-        </div>
-        <button onclick="closePinModal()" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
-      </div>
-      <div class="p-6 space-y-4">
-        <p id="pin-modal-desc" class="text-xs text-slate-500 text-center">Masukkan PIN Manajerial Admin (Default: <code class="bg-slate-100 px-1.5 py-0.5 font-bold text-slate-700">1234</code>):</p>
-        <input type="password" id="admin-pin-input" maxlength="6" placeholder="••••" class="w-full text-center px-4 py-3 bg-slate-100 border border-slate-200 rounded-xl text-xl font-mono font-black tracking-widest focus:outline-none focus:ring-2 focus:ring-brand-500">
-      </div>
-      <div class="p-4 bg-slate-50 border-t border-slate-200 flex justify-end gap-2">
-        <button onclick="closePinModal()" class="px-4 py-2 bg-slate-200 text-slate-700 text-xs font-bold rounded-xl">Batal</button>
-        <button onclick="verifyAdminPin()" class="px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white text-xs font-bold rounded-xl shadow-sm">Masuk</button>
-      </div>
-    </div>
-  </div>
+  <!-- (Modal PIN lama dihapus di Batch 1: login memakai Supabase Auth + role) -->
 
   <!-- MODAL: ACCOUNT MENU -->
   <div id="user-switch-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
@@ -923,8 +911,42 @@
     const DEFAULT_SUPABASE_URL = 'https://miendexhmlmwyknjevui.supabase.co';
     const DEFAULT_SUPABASE_KEY = 'sb_publishable_fpaZwZ-bWp_41u6z_FF1XQ_cESYDE29';
 
-    let SUPABASE_URL = localStorage.getItem('nyonya_supabase_url') || DEFAULT_SUPABASE_URL;
-    let SUPABASE_KEY = localStorage.getItem('nyonya_supabase_key') || DEFAULT_SUPABASE_KEY;
+    // ===== Helper keamanan & penyimpanan (Batch 1) =====
+    // Escape teks sebelum dimasukkan ke innerHTML / atribut HTML (anti XSS).
+    function escapeHtml(value) {
+      return String(value ?? '').replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
+    }
+    // Baca JSON dari localStorage; data rusak/tipe salah tidak boleh membuat aplikasi mati.
+    function loadLocal(key, fallback) {
+      try {
+        const raw = localStorage.getItem(key);
+        if (raw === null) return fallback;
+        const parsed = JSON.parse(raw);
+        if (parsed === null || parsed === undefined) return fallback;
+        if (Array.isArray(fallback) !== Array.isArray(parsed)) return fallback;
+        if (typeof fallback === 'object' && typeof parsed !== 'object') return fallback;
+        return parsed;
+      } catch (e) {
+        console.warn('localStorage rusak, memakai nilai bawaan:', key, e);
+        return fallback;
+      }
+    }
+    function getLocalString(key) {
+      try { return localStorage.getItem(key); } catch (e) { return null; }
+    }
+    // Tulis ke localStorage tanpa pernah melempar error (kuota penuh / mode privat).
+    function safeLocalSet(key, value) {
+      try {
+        localStorage.setItem(key, typeof value === 'string' ? value : JSON.stringify(value));
+        return true;
+      } catch (e) {
+        console.warn('Gagal menyimpan ke localStorage:', key, e);
+        return false;
+      }
+    }
+
+    let SUPABASE_URL = getLocalString('nyonya_supabase_url') || DEFAULT_SUPABASE_URL;
+    let SUPABASE_KEY = getLocalString('nyonya_supabase_key') || DEFAULT_SUPABASE_KEY;
     let supabaseClient = null;
 
     function isSupabaseConfigured() {
@@ -960,21 +982,21 @@
       name: "NYONYA TERASI TIBAN", 
       address: "Jl. Tiban Centre No. 88, Batam", 
       phone: "0812-3456-7890", 
-      footer: "Terima Kasih atas Kunjungan Anda!", 
-      adminPin: "1234" 
+      footer: "Terima Kasih atas Kunjungan Anda!"
     };
-    let storeConfig = JSON.parse(localStorage.getItem('nyonya_store_config')) || DEFAULT_STORE_CONFIG;
+    let storeConfig = { ...DEFAULT_STORE_CONFIG, ...loadLocal('nyonya_store_config', {}) };
+    delete storeConfig.adminPin; // PIN lama sudah tidak dipakai
 
-    let RAW_MATERIALS = JSON.parse(localStorage.getItem('nyonya_raw_materials')) || [
+    let RAW_MATERIALS = loadLocal('nyonya_raw_materials', [
       { id: 'rm_1', name: 'Daging Ayam Fresh', category: 'Daging & Unggas', stock: 85, unit: 'potong', cost: 12000 },
       { id: 'rm_2', name: 'Beras Premium', category: 'Sembako', stock: 50, unit: 'kg', cost: 15000 },
       { id: 'rm_3', name: 'Terasi Udang', category: 'Bumbu', stock: 12, unit: 'pack', cost: 8000 }
-    ];
+    ]);
 
-    let PRODUCTS = JSON.parse(localStorage.getItem('nyonya_products')) || [
+    let PRODUCTS = loadLocal('nyonya_products', [
       { id: 'p_1', name: 'Ayam Goreng Sambal Terasi', category: 'Makanan Utama', price: 28000, emoji: '🍗', available: true, recipe: [{ rawId: 'rm_1', qty: 1 }] },
       { id: 'p_2', name: 'Nasi Goreng Terasi Special', category: 'Makanan Utama', price: 25000, emoji: '🍛', available: true, recipe: [{ rawId: 'rm_2', qty: 0.2 }] }
-    ];
+    ]);
 
     function subscribeToProductsRealtime() {
       if (!supabaseClient || productsRealtimeChannel) return;
@@ -992,26 +1014,26 @@
       if (!supabaseClient) return;
       const { data, error } = await supabaseClient.from('categories').select('id,name').order('name').limit(500);
       if (error) throw error;
-      if (data?.length) { CATEGORIES = data.map(row => row.name); localStorage.setItem('nyonya_categories', JSON.stringify(CATEGORIES)); renderCategoriesTable(); }
+      if (data?.length) { CATEGORIES = data.map(row => row.name); safeLocalSet('nyonya_categories', CATEGORIES); renderCategoriesTable(); }
     }
     async function loadTablesFromSupabase() {
       if (!supabaseClient) return;
       const { data, error } = await supabaseClient.from('restaurant_tables').select('id,name').order('name').limit(500);
       if (error) throw error;
-      if (data?.length) { TABLES = data.map(row => row.name); localStorage.setItem('nyonya_tables', JSON.stringify(TABLES)); if (!TABLES.includes(currentTable)) currentTable = TABLES[0]; renderTableOptions(); renderTablesTable(); }
+      if (data?.length) { TABLES = data.map(row => row.name); safeLocalSet('nyonya_tables', TABLES); if (!TABLES.includes(currentTable)) currentTable = TABLES[0]; renderTableOptions(); renderTablesTable(); }
     }
     async function loadStoreConfigFromSupabase() {
       if (!supabaseClient) return;
       const { data, error } = await supabaseClient.from('store_config').select('id,name,address,phone,footer').eq('id','default').maybeSingle();
       if (error) throw error;
-      if (data) { storeConfig = { ...storeConfig, ...data }; localStorage.setItem('nyonya_store_config', JSON.stringify(storeConfig)); const header=document.getElementById('header-resto-name'); if(header) header.textContent=storeConfig.name; }
+      if (data) { storeConfig = { ...storeConfig, ...data }; safeLocalSet('nyonya_store_config', storeConfig); const header=document.getElementById('header-resto-name'); if(header) header.textContent=storeConfig.name; }
     }
+    // Riwayat transaksi HANYA dimuat saat dibutuhkan (Export CSV) dan tidak disimpan ke localStorage.
     async function loadTransactionHistoryFromSupabase() {
       if (!supabaseClient || currentUserRole !== 'admin') return;
       const { data, error } = await supabaseClient.from('transactions').select('trx_id,date,time,table_name,order_type,cashier,subtotal,tax,grand_total,payment_method,items,status,voided_at,void_reason').order('created_at',{ascending:false}).limit(5000);
       if (error) throw error;
       TRANSACTION_HISTORY = (data || []).map(row => ({ id: row.trx_id, date: row.date, time: row.time, table: row.table_name, orderType: row.order_type, cashier: row.cashier, items: row.items || [], subtotal:Number(row.subtotal||0), tax:Number(row.tax||0), grandTotal:Number(row.grand_total||0), paymentMethod:row.payment_method, status:row.status, voidedAt:row.voided_at, voidReason:row.void_reason }));
-      localStorage.setItem('nyonya_tx_history', JSON.stringify(TRANSACTION_HISTORY));
     }
     async function loadShiftSummaryFromSupabase() {
       if (!supabaseClient || !CURRENT_CASH_SESSION) return { cash: 0, total: 0, count: 0 };
@@ -1073,7 +1095,7 @@
           recipe: product.recipe || []
         }));
 
-        localStorage.setItem('nyonya_products', JSON.stringify(PRODUCTS));
+        safeLocalSet('nyonya_products', PRODUCTS);
         renderProducts();
         renderProductsTable();
         showToast('Menu berhasil dimuat dari Supabase', 'success');
@@ -1083,26 +1105,31 @@
       }
     }
 
-    let CATEGORIES = JSON.parse(localStorage.getItem('nyonya_categories')) || ['Makanan Utama', 'Minuman', 'Snack', 'Dessert'];
-    let TABLES = JSON.parse(localStorage.getItem('nyonya_tables')) || ['Meja 01', 'Meja 02', 'Meja 03', 'Meja 04', 'VIP 1'];
-    let MEMBERS = JSON.parse(localStorage.getItem('nyonya_members')) || [{ id: 'm_1', name: 'Bapak Hendra', phone: '08111222333', points: 120 }];
+    let CATEGORIES = loadLocal('nyonya_categories', ['Makanan Utama', 'Minuman', 'Snack', 'Dessert']);
+    let TABLES = loadLocal('nyonya_tables', ['Meja 01', 'Meja 02', 'Meja 03', 'Meja 04', 'VIP 1']);
+    let MEMBERS = loadLocal('nyonya_members', [{ id: 'm_1', name: 'Bapak Hendra', phone: '08111222333', points: 120 }]);
 
     let CART = [];
-    let ACTIVE_BILLS = JSON.parse(localStorage.getItem('nyonya_active_bills')) || {};
-    let TRANSACTION_HISTORY = JSON.parse(localStorage.getItem('nyonya_tx_history')) || [];
-    let printerConfig = JSON.parse(localStorage.getItem('nyonya_printer_config')) || {
+    let ACTIVE_BILLS = loadLocal('nyonya_active_bills', {});
+    // Riwayat transaksi tidak lagi disimpan di localStorage (kuota penuh bisa merusak checkout).
+    let TRANSACTION_HISTORY = [];
+    try { localStorage.removeItem('nyonya_tx_history'); } catch (e) { /* abaikan */ }
+    let printerConfig = loadLocal('nyonya_printer_config', {
       name: '',
       paper: '80mm',
       autoReceipt: false,
       autoKitchen: false
-    };
+    });
 
     let currentUser = { name: 'Kasir', role: 'Kasir' };
     let currentOrderType = 'Dine In';
     let currentTable = TABLES[0];
     let currentPaymentMethod = 'Cash';
     let currentCategoryFilter = 'Semua';
-    let pendingActionAfterPin = null;
+
+    // ===== Status checkout (Batch 1) =====
+    let checkoutInFlight = false;   // true selama permintaan pembayaran berjalan
+    let checkoutAttempt = null;     // { id, signature, sends } -> ID transaksi dipakai ulang saat retry
 
     window.onload = async function() {
       await initializeAuth();
@@ -1196,7 +1223,8 @@
       updateLiveClock();
       updateSupabaseStatusUI();
       try {
-        await Promise.all([loadCategoriesFromSupabase(), loadTablesFromSupabase(), loadStoreConfigFromSupabase(), loadProductsFromSupabase(), loadRawMaterialsFromSupabase(), loadMembersFromSupabase(), loadActiveBillsFromSupabase(), loadTransactionHistoryFromSupabase()]);
+        // Riwayat transaksi tidak lagi dimuat saat login (hanya saat Export CSV).
+        await Promise.all([loadCategoriesFromSupabase(), loadTablesFromSupabase(), loadStoreConfigFromSupabase(), loadProductsFromSupabase(), loadRawMaterialsFromSupabase(), loadMembersFromSupabase(), loadActiveBillsFromSupabase()]);
       } catch (error) { console.error('Gagal memuat data cloud:', error); showToast('Sebagian data cloud gagal dimuat: ' + error.message, 'error'); }
       renderProducts();
       renderTableOptions();
@@ -1220,14 +1248,19 @@
       document.getElementById('header-live-clock').textContent = `${now.toLocaleDateString('id-ID')} | ${now.toTimeString().split(' ')[0]}`;
     }
 
+    // Toast memakai textContent (aman dari HTML di dalam pesan). Pesan error tampil lebih lama.
     function showToast(message, type = 'success') {
       const container = document.getElementById('toast-container');
       const toast = document.createElement('div');
       const bgCol = type === 'success' ? 'bg-slate-900 text-white' : 'bg-red-600 text-white';
       toast.className = `${bgCol} px-4 py-2.5 rounded-xl shadow-xl text-xs font-bold pointer-events-auto flex items-center gap-2`;
-      toast.innerHTML = `<i class="fa-solid ${type === 'success' ? 'fa-circle-check text-emerald-400' : 'fa-triangle-exclamation'}"></i><span>${message}</span>`;
+      const icon = document.createElement('i');
+      icon.className = `fa-solid ${type === 'success' ? 'fa-circle-check text-emerald-400' : 'fa-triangle-exclamation'}`;
+      const text = document.createElement('span');
+      text.textContent = message;
+      toast.append(icon, text);
       container.appendChild(toast);
-      setTimeout(() => toast.remove(), 3000);
+      setTimeout(() => toast.remove(), type === 'success' ? 3000 : 6000);
     }
 
     function updateSupabaseStatusUI() {
@@ -1266,8 +1299,8 @@
           throw error;
         }
         SUPABASE_URL = url; SUPABASE_KEY = key; supabaseClient = client;
-        localStorage.setItem('nyonya_supabase_url', url);
-        localStorage.setItem('nyonya_supabase_key', key);
+        safeLocalSet('nyonya_supabase_url', url);
+        safeLocalSet('nyonya_supabase_key', key);
         updateSupabaseStatusUI();
         showToast('Koneksi Supabase Cloud Berhasil!', 'success');
         await loadProductsFromSupabase();
@@ -1348,7 +1381,7 @@
         card.type = 'button';
         card.disabled = product.available === false;
         card.className = `text-left bg-white rounded-2xl border border-slate-200 p-3 shadow-sm transition ${product.available === false ? 'opacity-50 cursor-not-allowed' : 'hover:border-brand-400 hover:shadow-md active:scale-[.98]'}`;
-        card.innerHTML = `<div class="flex items-start justify-between gap-2"><span class="text-3xl">${product.emoji || '🍽️'}</span><span class="text-[10px] font-bold px-2 py-1 rounded-lg ${product.available === false ? 'bg-red-100 text-red-600' : 'bg-emerald-100 text-emerald-700'}">${product.available === false ? 'Habis' : 'Tersedia'}</span></div><div class="mt-3"><div class="font-extrabold text-sm text-slate-800 leading-tight">${product.name}</div><div class="text-[10px] text-slate-500 mt-1">${product.category || 'Umum'}</div><div class="font-mono font-black text-brand-600 mt-2">Rp ${price.toLocaleString('id-ID')}</div></div>`;
+        card.innerHTML = `<div class="flex items-start justify-between gap-2"><span class="text-3xl">${escapeHtml(product.emoji || '🍽️')}</span><span class="text-[10px] font-bold px-2 py-1 rounded-lg ${product.available === false ? 'bg-red-100 text-red-600' : 'bg-emerald-100 text-emerald-700'}">${product.available === false ? 'Habis' : 'Tersedia'}</span></div><div class="mt-3"><div class="font-extrabold text-sm text-slate-800 leading-tight">${escapeHtml(product.name)}</div><div class="text-[10px] text-slate-500 mt-1">${escapeHtml(product.category || 'Umum')}</div><div class="font-mono font-black text-brand-600 mt-2">Rp ${price.toLocaleString('id-ID')}</div></div>`;
         if (product.available !== false) card.addEventListener('click', () => addToCart(product.id));
         grid.appendChild(card);
       });
@@ -1432,12 +1465,14 @@
         container.innerHTML = `<div class="h-full flex flex-col items-center justify-center text-slate-400 py-8"><i class="fa-solid fa-basket-shopping text-3xl mb-2 opacity-40"></i><span class="text-xs font-bold">Keranjang Kosong</span></div>`;
       } else {
         CART.forEach((item, idx) => {
+          const price = Number(item.price) || 0;
+          const qty = Number(item.qty) || 0;
           const row = document.createElement('div');
           row.className = "bg-white p-3 rounded-xl border border-slate-200 shadow-sm flex flex-col gap-2";
           row.innerHTML = `
-            <div class="flex items-center justify-between"><div class="flex items-center gap-2"><span class="text-xl">${item.emoji}</span><div><h5 class="font-extrabold text-xs text-slate-800">${item.name}</h5><span class="font-mono text-[11px] font-bold text-brand-600">Rp ${item.price.toLocaleString('id-ID')}</span></div></div><button onclick="removeFromCart(${idx})" class="text-slate-400 hover:text-red-500"><i class="fa-solid fa-trash"></i></button></div>
-            <div class="flex items-center justify-between pt-1 border-t border-slate-100"><div class="flex items-center gap-1.5 bg-slate-100 p-1 rounded-lg"><button onclick="updateCartQty(${idx}, -1)" class="w-6 h-6 bg-white rounded-md font-bold">-</button><span class="w-6 text-center font-mono text-xs font-bold">${item.qty}</span><button onclick="updateCartQty(${idx}, 1)" class="w-6 h-6 bg-white rounded-md font-bold">+</button></div><span class="font-mono font-extrabold text-xs">Rp ${(item.price * item.qty).toLocaleString('id-ID')}</span></div>
-            <input type="text" oninput="updateCartNotes(${idx}, this.value)" value="${item.notes || ''}" placeholder="Catatan koki..." class="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-[11px]">
+            <div class="flex items-center justify-between"><div class="flex items-center gap-2"><span class="text-xl">${escapeHtml(item.emoji)}</span><div><h5 class="font-extrabold text-xs text-slate-800">${escapeHtml(item.name)}</h5><span class="font-mono text-[11px] font-bold text-brand-600">Rp ${price.toLocaleString('id-ID')}</span></div></div><button onclick="removeFromCart(${idx})" class="text-slate-400 hover:text-red-500"><i class="fa-solid fa-trash"></i></button></div>
+            <div class="flex items-center justify-between pt-1 border-t border-slate-100"><div class="flex items-center gap-1.5 bg-slate-100 p-1 rounded-lg"><button onclick="updateCartQty(${idx}, -1)" class="w-6 h-6 bg-white rounded-md font-bold">-</button><span class="w-6 text-center font-mono text-xs font-bold">${qty}</span><button onclick="updateCartQty(${idx}, 1)" class="w-6 h-6 bg-white rounded-md font-bold">+</button></div><span class="font-mono font-extrabold text-xs">Rp ${(price * qty).toLocaleString('id-ID')}</span></div>
+            <input type="text" oninput="updateCartNotes(${idx}, this.value)" value="${escapeHtml(item.notes || '')}" placeholder="Catatan koki..." class="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-[11px]">
           `;
           container.appendChild(row);
         });
@@ -1449,9 +1484,11 @@
       if (mobileTotal) mobileTotal.textContent = `Rp ${total.toLocaleString('id-ID')}`;
       const checkoutButton = document.querySelector('[onclick="processCheckout()"]');
       if (checkoutButton) {
-        checkoutButton.disabled = CART.length === 0;
-        checkoutButton.classList.toggle('opacity-50', CART.length === 0);
-        checkoutButton.classList.toggle('cursor-not-allowed', CART.length === 0);
+        // Tombol Bayar nonaktif jika keranjang kosong ATAU pembayaran sedang diproses.
+        const blocked = CART.length === 0 || checkoutInFlight;
+        checkoutButton.disabled = blocked;
+        checkoutButton.classList.toggle('opacity-50', blocked);
+        checkoutButton.classList.toggle('cursor-not-allowed', blocked);
       }
     }
 
@@ -1524,17 +1561,17 @@
       const { error } = await supabaseClient.from('active_bills').upsert({ table_name: currentTable, order_type: currentOrderType, items: bill.items, order_time: bill.time, updated_at: new Date().toISOString() }, { onConflict: 'table_name' });
       if (error) { showToast('Bill dapur gagal disimpan: ' + error.message, 'error'); return; }
       ACTIVE_BILLS[currentTable] = bill;
-      localStorage.setItem('nyonya_active_bills', JSON.stringify(ACTIVE_BILLS));
+      safeLocalSet('nyonya_active_bills', ACTIVE_BILLS);
       updateActiveBillsCount();
       renderTableOptions();
 
-      // Render Kitchen Ticket Content
+      // Render Kitchen Ticket Content (semua data di-escape)
       const ktContent = document.getElementById('kitchen-ticket-content');
       ktContent.innerHTML = `
-        <div class="text-center pb-2 border-b border-dashed"><h4 class="font-extrabold text-sm">${storeConfig.name}</h4><p class="text-[10px]">TIKET DAPUR (KOKI)</p></div>
-        <div class="py-1"><span>${currentOrderType === 'Dine In' ? `Meja: <strong>${currentTable}</strong>` : `Channel: <strong>${currentOrderType}</strong>`}</span><br><span>Waktu: ${new Date().toLocaleTimeString()} | Kasir: ${currentUser.name}</span></div>
+        <div class="text-center pb-2 border-b border-dashed"><h4 class="font-extrabold text-sm">${escapeHtml(storeConfig.name)}</h4><p class="text-[10px]">TIKET DAPUR (KOKI)</p></div>
+        <div class="py-1"><span>${currentOrderType === 'Dine In' ? `Meja: <strong>${escapeHtml(currentTable)}</strong>` : `Channel: <strong>${escapeHtml(currentOrderType)}</strong>`}</span><br><span>Waktu: ${escapeHtml(new Date().toLocaleTimeString())} | Kasir: ${escapeHtml(currentUser.name)}</span></div>
         <div class="py-2 border-y border-dashed space-y-1">
-          ${CART.map(i=>`<div><strong>${i.qty}x ${i.name}</strong>${i.notes ? `<br><span class="text-red-600 pl-3">Catatan: ${i.notes}</span>`:''}</div>`).join('')}
+          ${CART.map(i=>`<div><strong>${Number(i.qty) || 0}x ${escapeHtml(i.name)}</strong>${i.notes ? `<br><span class="text-red-600 pl-3">Catatan: ${escapeHtml(i.notes)}</span>`:''}</div>`).join('')}
         </div>
       `;
 
@@ -1558,13 +1595,16 @@
         const b = ACTIVE_BILLS[tbl];
         const div = document.createElement('div');
         div.className = "bg-white p-3 rounded-xl border flex items-center justify-between";
-        div.innerHTML = `<div><h5 class="font-bold text-sm">${b.table} (${b.orderType})</h5><p class="text-[11px] text-slate-500">${b.items.length} item | Masuk: ${b.time}</p></div><button onclick="recallSpecificBill('${tbl}')" class="px-3 py-1.5 bg-brand-600 text-white text-xs font-bold rounded-xl">Panggil</button>`;
+        div.innerHTML = `<div><h5 class="font-bold text-sm">${escapeHtml(b.table)} (${escapeHtml(b.orderType)})</h5><p class="text-[11px] text-slate-500">${(b.items || []).length} item | Masuk: ${escapeHtml(b.time)}</p></div><button type="button" data-table="${escapeHtml(tbl)}" class="recall-btn px-3 py-1.5 bg-brand-600 text-white text-xs font-bold rounded-xl">Panggil</button>`;
+        // Tidak memakai onclick inline berisi data; nama meja dibaca dari atribut data.
+        div.querySelector('.recall-btn').addEventListener('click', (e) => recallSpecificBill(e.currentTarget.dataset.table));
         list.appendChild(div);
       });
       document.getElementById('recall-bills-modal').classList.remove('hidden');
     }
     function closeRecallBillsModal() { document.getElementById('recall-bills-modal').classList.add('hidden'); }
     function recallSpecificBill(tbl) {
+      if (!ACTIVE_BILLS[tbl]) { showToast('Bill tidak ditemukan', 'error'); return; }
       currentTable = tbl; document.getElementById('table-selector').value = tbl;
       currentOrderType = ACTIVE_BILLS[tbl].orderType || 'Dine In';
       updateOrderTypeUI();
@@ -1572,19 +1612,84 @@
       renderCart(); closeRecallBillsModal(); showToast(`Bill ${tbl} dipanggil`, 'success');
     }
 
+    // ===== CHECKOUT (Batch 1) =====
+    // ID transaksi dibuat dengan crypto (bukan Math.random) dan DIPAKAI ULANG selama isi keranjang sama,
+    // sehingga mengulang tekan "Bayar" setelah gangguan jaringan tidak membuat transaksi baru.
+    function generateTrxId() {
+      let n;
+      if (window.crypto && window.crypto.getRandomValues) {
+        const buf = new Uint32Array(1);
+        window.crypto.getRandomValues(buf);
+        n = 100000 + (buf[0] % 900000);
+      } else {
+        n = Math.floor(100000 + Math.random() * 900000);
+      }
+      return 'TRX-' + n;
+    }
+
+    function getCheckoutSignature(summary) {
+      return JSON.stringify({
+        o: currentOrderType,
+        t: currentOrderType === 'Dine In' ? currentTable : '-',
+        p: currentPaymentMethod,
+        m: document.getElementById('member-selector').value || '',
+        x: document.getElementById('tax-toggle-checkbox').checked,
+        s: summary.serviceRate,
+        d: summary.discountRate,
+        c: CURRENT_CASH_SESSION?.id || null,
+        i: CART.map(i => [i.id, i.qty, i.price])
+      });
+    }
+
+    function setCheckoutBusy(busy) {
+      checkoutInFlight = busy;
+      const btn = document.querySelector('[onclick="processCheckout()"]');
+      const label = btn ? btn.querySelector('span') : null;
+      if (label) label.textContent = busy ? 'Memproses...' : 'Bayar Kasir';
+      renderCart(); // memperbarui status disabled tombol Bayar
+    }
+
+    function isNetworkError(error) {
+      const msg = String(error?.message || error || '');
+      return (typeof navigator !== 'undefined' && navigator.onLine === false) ||
+        (!error?.code && /failed to fetch|networkerror|network request|load failed|timeout|timed out|abort/i.test(msg));
+    }
+
+    function isDuplicateKeyError(error) {
+      const msg = String(error?.message || '');
+      return error?.code === '23505' || /duplicate key|already exists/i.test(msg);
+    }
+
     async function processCheckout() {
+      if (checkoutInFlight) return; // klik ganda / ketukan berulang diabaikan
+      if (!document.getElementById('receipt-modal').classList.contains('hidden')) return; // struk sebelumnya masih terbuka
       if(CART.length === 0) { showToast('Keranjang kosong!', 'error'); return; }
       if (!CURRENT_CASH_SESSION) { showToast('Buka shift kasir terlebih dahulu', 'error'); openShiftModal(); return; }
       const summary = getPaymentBreakdown();
       const gt = summary.grandTotal;
       const given = currentPaymentMethod === 'Cash' ? (parseFloat(document.getElementById('cash-given-input').value) || 0) : gt;
-      const change = Math.max(0, given - gt);
       if (currentPaymentMethod === 'Cash' && given < gt) {
         showToast(`Uang masih kurang Rp ${(gt - given).toLocaleString('id-ID')}`, 'error');
         document.getElementById('cash-given-input').focus();
         return;
       }
-      const trxId = 'TRX-' + Math.floor(100000 + Math.random() * 900000);
+      const signature = getCheckoutSignature(summary);
+      if (!checkoutAttempt || checkoutAttempt.signature !== signature) {
+        checkoutAttempt = { id: generateTrxId(), signature, sends: 0 };
+      }
+      setCheckoutBusy(true);
+      try {
+        await runCheckout(summary, given, true);
+      } finally {
+        setCheckoutBusy(false);
+      }
+    }
+
+    async function runCheckout(summary, given, allowIdRetry) {
+      const gt = summary.grandTotal;
+      const change = Math.max(0, given - gt);
+      const attempt = checkoutAttempt;
+      const trxId = attempt.id;
 
       const trx = { 
         id: trxId, 
@@ -1609,43 +1714,71 @@
       };
       
       let serverResult;
+      attempt.sends += 1;
       try {
         serverResult = await syncTransactionToSupabase(trx);
       } catch (error) {
         console.error('Atomic checkout gagal:', error);
-        showToast('Checkout gagal dan tidak disimpan: ' + error.message, 'error');
+        if (isDuplicateKeyError(error)) {
+          if (attempt.sends > 1) {
+            // Pengiriman ulang dengan ID yang sama ditolak: kemungkinan besar pengiriman pertama sudah tersimpan.
+            showToast(`Transaksi ${trxId} kemungkinan SUDAH tersimpan. Periksa Laporan sebelum mengulang.`, 'error');
+            return;
+          }
+          if (allowIdRetry) {
+            // Kebetulan nomor sama dengan transaksi lain: buat nomor baru dan coba satu kali lagi.
+            checkoutAttempt = { id: generateTrxId(), signature: attempt.signature, sends: 0 };
+            return runCheckout(summary, given, false);
+          }
+          showToast('Nomor transaksi bentrok. Silakan tekan Bayar sekali lagi.', 'error');
+          checkoutAttempt = null;
+          return;
+        }
+        if (isNetworkError(error)) {
+          showToast(`Koneksi bermasalah. Transaksi ${trxId} MUNGKIN sudah tersimpan. Jangan ubah pesanan, tekan Bayar lagi untuk memastikan (nomor transaksi sama).`, 'error');
+          return;
+        }
+        // Server menolak (rollback): data tidak tersimpan, aman diulang dengan nomor baru.
+        checkoutAttempt = null;
+        showToast('Checkout gagal dan tidak disimpan: ' + (error?.message || 'kesalahan tidak diketahui'), 'error');
         return;
       }
-      trx.subtotal = Number(serverResult.subtotal);
-      trx.tax = Number(serverResult.tax);
-      trx.serviceCharge = Number(serverResult.service_charge);
-      trx.discount = Number(serverResult.discount);
-      trx.memberDiscount = Number(serverResult.member_discount);
-      trx.grandTotal = Number(serverResult.grand_total);
-      trx.cashGiven = Number(serverResult.cash_given);
-      trx.change = Number(serverResult.change);
-      TRANSACTION_HISTORY.unshift(trx);
-      localStorage.setItem('nyonya_tx_history', JSON.stringify(TRANSACTION_HISTORY));
 
-      if(ACTIVE_BILLS[currentTable]) {
-        await supabaseClient.from('active_bills').delete().eq('table_name', currentTable);
-        delete ACTIVE_BILLS[currentTable]; localStorage.setItem('nyonya_active_bills', JSON.stringify(ACTIVE_BILLS)); updateActiveBillsCount(); renderTableOptions();
-      }
-      await loadRawMaterialsFromSupabase();
+      // ===== Transaksi SUDAH tersimpan di server. Langkah di bawah tidak boleh membatalkan struk. =====
+      checkoutAttempt = null;
+      const sr = serverResult || {};
+      const num = (value, fallback) => { const n = Number(value); return (value === undefined || value === null || !Number.isFinite(n)) ? fallback : n; };
+      trx.subtotal = num(sr.subtotal, trx.subtotal);
+      trx.tax = num(sr.tax, trx.tax);
+      trx.serviceCharge = num(sr.service_charge, trx.serviceCharge);
+      trx.discount = num(sr.discount, trx.discount);
+      trx.memberDiscount = num(sr.member_discount, trx.memberDiscount);
+      trx.grandTotal = num(sr.grand_total, trx.grandTotal);
+      trx.cashGiven = num(sr.cash_given, trx.cashGiven);
+      trx.change = num(sr.change, trx.change);
+
+      try {
+        if (ACTIVE_BILLS[currentTable]) {
+          const { error: billError } = await supabaseClient.from('active_bills').delete().eq('table_name', currentTable);
+          if (billError) showToast('Pembayaran tersimpan, tetapi bill aktif belum terhapus: ' + billError.message, 'error');
+          delete ACTIVE_BILLS[currentTable]; safeLocalSet('nyonya_active_bills', ACTIVE_BILLS); updateActiveBillsCount(); renderTableOptions();
+        }
+      } catch (e) { console.warn('Gagal membersihkan bill aktif setelah checkout:', e); }
+      try { await loadRawMaterialsFromSupabase(); } catch (e) { console.warn('Gagal memuat ulang stok bahan:', e); }
 
       document.getElementById('receipt-content').innerHTML = `
         <div class="text-center pb-2 border-b border-dashed">
-          <h4 class="font-extrabold text-sm">${storeConfig.name}</h4>
-          <p class="text-[10px] text-slate-500">${storeConfig.address || ''}</p>
-          <p class="text-[10px] text-slate-500">Telp: ${storeConfig.phone || ''}</p>
+          <h4 class="font-extrabold text-sm">${escapeHtml(storeConfig.name)}</h4>
+          <p class="text-[10px] text-slate-500">${escapeHtml(storeConfig.address || '')}</p>
+          <p class="text-[10px] text-slate-500">Telp: ${escapeHtml(storeConfig.phone || '')}</p>
         </div>
         <div class="py-1 text-[11px]">
-          <span>TRX: <strong>${trxId}</strong></span><br>
-          <span>Tanggal: ${trx.date} | ${trx.time}</span><br>
-          <span>${currentOrderType === 'Dine In' ? `Meja: ${currentTable}` : `Channel: ${currentOrderType}`} | Kasir: ${currentUser.name}</span>
+          <span>TRX: <strong>${escapeHtml(trxId)}</strong></span><br>
+          <span>Tanggal: ${escapeHtml(trx.date)} | ${escapeHtml(trx.time)}</span><br>
+          <span>${currentOrderType === 'Dine In' ? `Meja: ${escapeHtml(currentTable)}` : `Channel: ${escapeHtml(currentOrderType)}`} | Kasir: ${escapeHtml(currentUser.name)}</span>
         </div>
         <div class="py-2 border-y border-dashed space-y-1">
-          ${trx.items.map(i=>`<div class="flex justify-between"><span>${i.qty}x ${i.name}</span><span>Rp ${(i.price*i.qty).toLocaleString('id-ID')}</span></div>`).join('')}
+          ${trx.items.map(i=>`<div class="flex justify-between"><span>${Number(i.qty) || 0}x ${escapeHtml(i.name)}</span><span>Rp ${((Number(i.price) || 0)*(Number(i.qty) || 0)).toLocaleString('id-ID')}</span></div>`).join('')}
         </div>
         <div class="space-y-0.5 text-right font-bold text-[11px]">
           <div>Subtotal: Rp ${trx.subtotal.toLocaleString('id-ID')}</div>
@@ -1654,19 +1787,19 @@
           <div>Diskon: - Rp ${trx.discount.toLocaleString('id-ID')}</div>
           <div>Diskon Member: - Rp ${trx.memberDiscount.toLocaleString('id-ID')}</div>
           <div class="text-sm font-black text-brand-600 pt-1 border-t">TOTAL BAYAR: Rp ${trx.grandTotal.toLocaleString('id-ID')}</div>
-          <div class="pt-1">Metode: ${currentPaymentMethod}</div>
+          <div class="pt-1">Metode: ${escapeHtml(currentPaymentMethod)}</div>
           <div>Dibayar: Rp ${trx.cashGiven.toLocaleString('id-ID')}</div>
           <div class="text-brand-600">Kembalian: Rp ${trx.change.toLocaleString('id-ID')}</div>
         </div>
         <div class="text-center pt-3 border-t border-dashed text-[10px] text-slate-500">
-          ${storeConfig.footer || 'Terima Kasih atas Kunjungan Anda!'}
+          ${escapeHtml(storeConfig.footer || 'Terima Kasih atas Kunjungan Anda!')}
         </div>
       `;
 
       document.getElementById('receipt-modal').classList.remove('hidden');
       if (printerConfig.autoReceipt) setTimeout(printReceipt, 350);
     }
-    function closeReceiptModal() { document.getElementById('receipt-modal').classList.add('hidden'); CART = []; renderCart(); }
+    function closeReceiptModal() { document.getElementById('receipt-modal').classList.add('hidden'); CART = []; checkoutAttempt = null; renderCart(); }
 
     function openUserSwitchModal() {
       const email = document.getElementById('account-modal-email');
@@ -1674,9 +1807,6 @@
       document.getElementById('user-switch-modal').classList.remove('hidden');
     }
     function closeUserSwitchModal() { document.getElementById('user-switch-modal').classList.add('hidden'); }
-    function switchUserRole(role) {
-      switchAccount();
-    }
 
     async function switchAccount() {
       closeUserSwitchModal();
@@ -1699,18 +1829,6 @@
       if (action === 'management') openManagementModal();
       else if (action === 'reports') openReportsModal();
     }
-    function closePinModal() { document.getElementById('pin-modal').classList.add('hidden'); }
-    function verifyAdminPin() {
-      const pin = document.getElementById('admin-pin-input').value;
-      if(pin === storeConfig.adminPin) {
-        currentUser = { name: 'Admin', role: 'Admin' };
-        document.getElementById('header-user-name').textContent = 'Admin';
-        document.getElementById('header-user-role-badge').textContent = 'Admin';
-        closePinModal();
-        if(pendingActionAfterPin === 'management') openManagementModal();
-        else if(pendingActionAfterPin === 'reports') openReportsModal();
-      } else { showToast('PIN Salah! (Default: 1234)', 'error'); }
-    }
 
     function openManagementModal() { renderRawMaterialsTable(); renderProductsTable(); renderMenuManagementTable(); renderCategoriesTable(); renderTablesTable(); document.getElementById('management-modal').classList.remove('hidden'); }
     function closeManagementModal() { document.getElementById('management-modal').classList.add('hidden'); }
@@ -1722,10 +1840,8 @@
     }
 
     function renderRawMaterialsTable() {
-      const tbody = document.getElementById('raw-materials-table-body'); tbody.innerHTML = '';
-      RAW_MATERIALS.forEach(rm => {
-        tbody.innerHTML += `<tr class="hover:bg-slate-50"><td class="p-3 font-bold">${rm.name}</td><td class="p-3 text-slate-500">${rm.category}</td><td class="p-3 text-center font-mono font-bold">${rm.stock}</td><td class="p-3 text-center text-slate-500">${rm.unit}</td><td class="p-3 text-right"><button onclick="deleteRawMaterial('${rm.id}')" class="text-red-500 font-bold">Hapus</button></td></tr>`;
-      });
+      const tbody = document.getElementById('raw-materials-table-body');
+      tbody.innerHTML = RAW_MATERIALS.map(rm => `<tr class="hover:bg-slate-50"><td class="p-3 font-bold">${escapeHtml(rm.name)}</td><td class="p-3 text-slate-500">${escapeHtml(rm.category)}</td><td class="p-3 text-center font-mono font-bold">${escapeHtml(rm.stock)}</td><td class="p-3 text-center text-slate-500">${escapeHtml(rm.unit)}</td><td class="p-3 text-right"><button type="button" data-id="${escapeHtml(rm.id)}" onclick="deleteRawMaterial(this.dataset.id)" class="text-red-500 font-bold">Hapus</button></td></tr>`).join('');
     }
     function openAddRawMaterialModal() { document.getElementById('add-raw-material-modal').classList.remove('hidden'); }
     function closeAddRawMaterialModal() { document.getElementById('add-raw-material-modal').classList.add('hidden'); }
@@ -1737,7 +1853,7 @@
       const row = { id: 'rm_'+Date.now(), name, category: 'Umum', stock, unit, cost: 10000 };
       const { error } = await supabaseClient.from('raw_materials').insert(row);
       if (error) return showToast('Gagal menyimpan bahan ke Supabase: ' + error.message, 'error');
-      RAW_MATERIALS.push(row); localStorage.setItem('nyonya_raw_materials', JSON.stringify(RAW_MATERIALS));
+      RAW_MATERIALS.push(row); safeLocalSet('nyonya_raw_materials', RAW_MATERIALS);
       closeAddRawMaterialModal(); renderRawMaterialsTable(); showToast('Bahan tersimpan di Supabase', 'success');
     }
     async function deleteRawMaterial(id) {
@@ -1745,21 +1861,24 @@
       if (!confirm('Hapus bahan ini dari Supabase?')) return;
       const { error } = await supabaseClient.from('raw_materials').delete().eq('id', id);
       if (error) return showToast('Gagal menghapus bahan: ' + error.message, 'error');
-      RAW_MATERIALS = RAW_MATERIALS.filter(r => r.id !== id); localStorage.setItem('nyonya_raw_materials', JSON.stringify(RAW_MATERIALS)); renderRawMaterialsTable(); showToast('Bahan dihapus dari Supabase', 'success');
+      RAW_MATERIALS = RAW_MATERIALS.filter(r => r.id !== id); safeLocalSet('nyonya_raw_materials', RAW_MATERIALS); renderRawMaterialsTable(); showToast('Bahan dihapus dari Supabase', 'success');
     }
 
     function renderProductsTable() {
-      const tbody = document.getElementById('products-table-body'); tbody.innerHTML = '';
-      PRODUCTS.forEach(p => {
-        tbody.innerHTML += `<tr class="hover:bg-slate-50"><td class="p-3 font-bold">${p.emoji} ${p.name}</td><td class="p-3 text-slate-500">${p.category}</td><td class="p-3 font-mono"><div>Toko Rp ${p.price.toLocaleString('id-ID')}</div><div class="text-sky-600">Gojek Rp ${(p.gojek_price || p.price).toLocaleString('id-ID')}</div><div class="text-orange-600">Grab Rp ${(p.grab_price || p.price).toLocaleString('id-ID')}</div></td><td class="p-3 text-center"><button onclick="toggleProd('${p.id}')" class="px-2 py-0.5 rounded text-[10px] font-bold ${p.available?'bg-emerald-100 text-emerald-700':'bg-red-100 text-red-700'}">${p.available?'Tersedia':'Habis'}</button></td><td class="p-3 text-right"></td></tr>`;
-      });
+      const tbody = document.getElementById('products-table-body');
+      tbody.innerHTML = PRODUCTS.map(p => {
+        const price = Number(p.price) || 0;
+        const gojek = Number(p.gojek_price) || price;
+        const grab = Number(p.grab_price) || price;
+        return `<tr class="hover:bg-slate-50"><td class="p-3 font-bold">${escapeHtml(p.emoji)} ${escapeHtml(p.name)}</td><td class="p-3 text-slate-500">${escapeHtml(p.category)}</td><td class="p-3 font-mono"><div>Toko Rp ${price.toLocaleString('id-ID')}</div><div class="text-sky-600">Gojek Rp ${gojek.toLocaleString('id-ID')}</div><div class="text-orange-600">Grab Rp ${grab.toLocaleString('id-ID')}</div></td><td class="p-3 text-center"><button type="button" data-id="${escapeHtml(p.id)}" onclick="toggleProd(this.dataset.id)" class="px-2 py-0.5 rounded text-[10px] font-bold ${p.available?'bg-emerald-100 text-emerald-700':'bg-red-100 text-red-700'}">${p.available?'Tersedia':'Habis'}</button></td><td class="p-3 text-right"></td></tr>`;
+      }).join('');
     }
     async function toggleProd(id) {
       const product = PRODUCTS.find(item => item.id === id);
       if (!product) return;
 
       product.available = !product.available;
-      localStorage.setItem('nyonya_products', JSON.stringify(PRODUCTS));
+      safeLocalSet('nyonya_products', PRODUCTS);
       renderProducts();
       renderProductsTable();
 
@@ -1792,10 +1911,8 @@
     }
 
     function renderMenuManagementTable() {
-      const tbody = document.getElementById('menu-mgmt-table-body'); tbody.innerHTML = '';
-      PRODUCTS.forEach(p => {
-        tbody.innerHTML += `<tr class="hover:bg-slate-50"><td class="p-3 font-bold">${p.emoji} ${p.name}</td><td class="p-3 text-slate-500">${p.category}</td><td class="p-3 font-mono">Rp ${p.price.toLocaleString('id-ID')}</td><td class="p-3 text-slate-500">${p.recipe?.length||0} Bahan</td><td class="p-3 text-right whitespace-nowrap"><button onclick="openEditProductModal('${p.id}')" class="text-indigo-600 font-bold mr-3">Edit</button><button onclick="deleteProduct('${p.id}')" class="text-red-600 font-bold">Hapus</button></td></tr>`;
-      });
+      const tbody = document.getElementById('menu-mgmt-table-body');
+      tbody.innerHTML = PRODUCTS.map(p => `<tr class="hover:bg-slate-50"><td class="p-3 font-bold">${escapeHtml(p.emoji)} ${escapeHtml(p.name)}</td><td class="p-3 text-slate-500">${escapeHtml(p.category)}</td><td class="p-3 font-mono">Rp ${(Number(p.price) || 0).toLocaleString('id-ID')}</td><td class="p-3 text-slate-500">${p.recipe?.length||0} Bahan</td><td class="p-3 text-right whitespace-nowrap"><button type="button" data-id="${escapeHtml(p.id)}" onclick="openEditProductModal(this.dataset.id)" class="text-indigo-600 font-bold mr-3">Edit</button><button type="button" data-id="${escapeHtml(p.id)}" onclick="deleteProduct(this.dataset.id)" class="text-red-600 font-bold">Hapus</button></td></tr>`).join('');
     }
     function openAddProductModal() {
       document.getElementById('product-modal-title').textContent = 'Tambah Menu Baru';
@@ -1877,7 +1994,7 @@
         const index = PRODUCTS.findIndex(item => item.id === product.id);
         if (index >= 0) PRODUCTS[index] = product;
         else PRODUCTS.push(product);
-        localStorage.setItem('nyonya_products', JSON.stringify(PRODUCTS));
+        safeLocalSet('nyonya_products', PRODUCTS);
         renderProducts();
         renderProductsTable();
         renderMenuManagementTable();
@@ -1902,7 +2019,7 @@
         const { error } = await supabaseClient.from('products').delete().eq('id', id);
         if (error) throw error;
         PRODUCTS = PRODUCTS.filter(item => item.id !== id);
-        localStorage.setItem('nyonya_products', JSON.stringify(PRODUCTS));
+        safeLocalSet('nyonya_products', PRODUCTS);
         renderProducts();
         renderProductsTable();
         renderMenuManagementTable();
@@ -1915,16 +2032,16 @@
     }
 
     function renderCategoriesTable() {
-      const tbody = document.getElementById('categories-table-body'); tbody.innerHTML = '';
-      CATEGORIES.forEach(c => tbody.innerHTML += `<tr><td class="p-3 font-bold">${c}</td><td class="p-3 text-right"></td></tr>`);
+      const tbody = document.getElementById('categories-table-body');
+      tbody.innerHTML = CATEGORIES.map(c => `<tr><td class="p-3 font-bold">${escapeHtml(c)}</td><td class="p-3 text-right"></td></tr>`).join('');
     }
-    async function addNewCategory() { const v = document.getElementById('new-category-input').value.trim(); if(!v || !supabaseClient) return; const row={id:'cat_'+Date.now(),name:v}; const {error}=await supabaseClient.from('categories').insert(row); if(error) return showToast('Gagal menyimpan kategori: '+error.message,'error'); CATEGORIES.push(v); localStorage.setItem('nyonya_categories',JSON.stringify(CATEGORIES)); renderCategoriesTable(); showToast('Kategori tersimpan di Supabase','success'); }
+    async function addNewCategory() { const v = document.getElementById('new-category-input').value.trim(); if(!v || !supabaseClient) return; const row={id:'cat_'+Date.now(),name:v}; const {error}=await supabaseClient.from('categories').insert(row); if(error) return showToast('Gagal menyimpan kategori: '+error.message,'error'); CATEGORIES.push(v); safeLocalSet('nyonya_categories',CATEGORIES); renderCategoriesTable(); showToast('Kategori tersimpan di Supabase','success'); }
 
     function renderTablesTable() {
-      const tbody = document.getElementById('tables-table-body'); tbody.innerHTML = '';
-      TABLES.forEach(t => tbody.innerHTML += `<tr><td class="p-3 font-bold">${t}</td><td class="p-3 text-right"></td></tr>`);
+      const tbody = document.getElementById('tables-table-body');
+      tbody.innerHTML = TABLES.map(t => `<tr><td class="p-3 font-bold">${escapeHtml(t)}</td><td class="p-3 text-right"></td></tr>`).join('');
     }
-    async function addNewTable() { const v = document.getElementById('new-table-input').value.trim(); if(!v || !supabaseClient) return; const row={id:'table_'+Date.now(),name:v}; const {error}=await supabaseClient.from('restaurant_tables').insert(row); if(error) return showToast('Gagal menyimpan meja: '+error.message,'error'); TABLES.push(v); localStorage.setItem('nyonya_tables',JSON.stringify(TABLES)); renderTablesTable(); renderTableOptions(); showToast('Meja tersimpan di Supabase','success'); }
+    async function addNewTable() { const v = document.getElementById('new-table-input').value.trim(); if(!v || !supabaseClient) return; const row={id:'table_'+Date.now(),name:v}; const {error}=await supabaseClient.from('restaurant_tables').insert(row); if(error) return showToast('Gagal menyimpan meja: '+error.message,'error'); TABLES.push(v); safeLocalSet('nyonya_tables',TABLES); renderTablesTable(); renderTableOptions(); showToast('Meja tersimpan di Supabase','success'); }
 
     async function saveStoreSettings() {
       storeConfig.name = document.getElementById('setting-store-name').value.trim() || DEFAULT_STORE_CONFIG.name;
@@ -1934,7 +2051,7 @@
       if (!supabaseClient) return showToast('Supabase belum tersambung', 'error');
       const { error } = await supabaseClient.from('store_config').upsert({ id:'default', name:storeConfig.name, address:storeConfig.address, phone:storeConfig.phone, footer:storeConfig.footer, updated_at:new Date().toISOString() }, { onConflict:'id' });
       if (error) return showToast('Gagal menyimpan konfigurasi cloud: ' + error.message, 'error');
-      localStorage.setItem('nyonya_store_config', JSON.stringify(storeConfig));
+      safeLocalSet('nyonya_store_config', storeConfig);
       document.getElementById('header-resto-name').textContent = storeConfig.name;
       showToast('Pengaturan tersimpan di Supabase', 'success');
     }
@@ -1960,12 +2077,6 @@
     async function signOutAdmin() {
       const { error } = await supabaseClient.auth.signOut();
       if (error) showToast('Gagal keluar: ' + error.message, 'error');
-    }
-
-    function saveAdminPin() {
-      const pin = document.getElementById('setting-admin-pin').value.trim();
-      if(pin.length >= 4) { storeConfig.adminPin = pin; localStorage.setItem('nyonya_store_config', JSON.stringify(storeConfig)); showToast('PIN Admin diubah', 'success'); }
-      else { showToast('PIN minimal 4 digit', 'error'); }
     }
 
     function openVoidModal() {
@@ -2012,7 +2123,7 @@
         paymentTotals[method] = (paymentTotals[method] || 0) + Number(row.grand_total || 0);
       });
       const paymentBox = document.getElementById('rep-payment-breakdown');
-      if (paymentBox) paymentBox.innerHTML = Object.entries(paymentTotals).sort((a,b) => b[1] - a[1]).map(([method, amount]) => `<div class="rounded-xl bg-slate-50 border border-slate-200 p-3"><div class="text-[10px] font-bold text-slate-500">${method}</div><div class="font-mono font-black text-sm text-slate-800">Rp ${amount.toLocaleString('id-ID')}</div></div>`).join('') || '<div class="text-xs text-slate-400">Belum ada data pembayaran.</div>';
+      if (paymentBox) paymentBox.innerHTML = Object.entries(paymentTotals).sort((a,b) => b[1] - a[1]).map(([method, amount]) => `<div class="rounded-xl bg-slate-50 border border-slate-200 p-3"><div class="text-[10px] font-bold text-slate-500">${escapeHtml(method)}</div><div class="font-mono font-black text-sm text-slate-800">Rp ${amount.toLocaleString('id-ID')}</div></div>`).join('') || '<div class="text-xs text-slate-400">Belum ada data pembayaran.</div>';
       document.getElementById('rep-total-revenue').textContent = `Rp ${totalRev.toLocaleString('id-ID')}`;
       document.getElementById('rep-total-orders').textContent = rows.length.toLocaleString('id-ID');
       document.getElementById('rep-avg-order').textContent = `Rp ${Math.round(rows.length ? totalRev / rows.length : 0).toLocaleString('id-ID')}`;
@@ -2029,11 +2140,10 @@
         else grouped[date].toko += amount;
       });
       const dailyTbody = document.getElementById('daily-sales-table-body');
-      dailyTbody.innerHTML = '';
-      Object.keys(grouped).sort().reverse().forEach(date => {
+      dailyTbody.innerHTML = Object.keys(grouped).sort().reverse().map(date => {
         const r = grouped[date];
-        dailyTbody.innerHTML += `<tr class="hover:bg-slate-50"><td class="p-3 font-bold">${date}</td><td class="p-3 text-center font-mono">${r.count}</td><td class="p-3 text-right font-mono">Rp ${r.toko.toLocaleString('id-ID')}</td><td class="p-3 text-right font-mono text-sky-600">Rp ${r.gojek.toLocaleString('id-ID')}</td><td class="p-3 text-right font-mono text-orange-600">Rp ${r.grab.toLocaleString('id-ID')}</td><td class="p-3 text-right font-mono font-bold text-emerald-600">Rp ${r.total.toLocaleString('id-ID')}</td></tr>`;
-      });
+        return `<tr class="hover:bg-slate-50"><td class="p-3 font-bold">${escapeHtml(date)}</td><td class="p-3 text-center font-mono">${r.count}</td><td class="p-3 text-right font-mono">Rp ${r.toko.toLocaleString('id-ID')}</td><td class="p-3 text-right font-mono text-sky-600">Rp ${r.gojek.toLocaleString('id-ID')}</td><td class="p-3 text-right font-mono text-orange-600">Rp ${r.grab.toLocaleString('id-ID')}</td><td class="p-3 text-right font-mono font-bold text-emerald-600">Rp ${r.total.toLocaleString('id-ID')}</td></tr>`;
+      }).join('');
     }
 
     async function openReportsModal() {
@@ -2156,7 +2266,7 @@
         autoReceipt: document.getElementById('setting-auto-receipt').checked,
         autoKitchen: document.getElementById('setting-auto-kitchen').checked
       };
-      localStorage.setItem('nyonya_printer_config', JSON.stringify(printerConfig));
+      safeLocalSet('nyonya_printer_config', printerConfig);
       updatePrinterStatus('Konfigurasi printer tersimpan di perangkat ini.');
       showToast('Pengaturan printer disimpan', 'success');
     }
@@ -2192,7 +2302,7 @@
       const test = document.createElement('div');
       test.className = 'printable-area';
       test.id = 'printer-test-content';
-      test.innerHTML = `<div style="text-align:center;font-family:monospace;font-size:12px;padding:8px"><strong>TES PRINTER POS</strong><br>${printerConfig.name || 'Printer belum diberi nama'}<br>${new Date().toLocaleString('id-ID')}<br><br>Printer siap digunakan.</div>`;
+      test.innerHTML = `<div style="text-align:center;font-family:monospace;font-size:12px;padding:8px"><strong>TES PRINTER POS</strong><br>${escapeHtml(printerConfig.name || 'Printer belum diberi nama')}<br>${escapeHtml(new Date().toLocaleString('id-ID'))}<br><br>Printer siap digunakan.</div>`;
       document.body.appendChild(test);
       preparePrint();
       setTimeout(() => test.remove(), 1000);
