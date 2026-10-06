@@ -978,12 +978,46 @@
 
     function subscribeToProductsRealtime() {
       if (!supabaseClient || productsRealtimeChannel) return;
-      productsRealtimeChannel = supabaseClient.channel('products-live-sync')
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'products' }, async () => {
-          await loadProductsFromSupabase();
-          showToast('Harga/menu diperbarui dari perangkat lain', 'success');
-        })
+      productsRealtimeChannel = supabaseClient.channel('cloud-live-sync')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'products' }, async () => { await loadProductsFromSupabase(); showToast('Harga/menu diperbarui dari perangkat lain', 'success'); })
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'raw_materials' }, async () => { await loadRawMaterialsFromSupabase(); })
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'active_bills' }, async () => { await loadActiveBillsFromSupabase(); renderTableOptions(); })
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'categories' }, async () => { await loadCategoriesFromSupabase(); })
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'restaurant_tables' }, async () => { await loadTablesFromSupabase(); renderTableOptions(); })
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'store_config' }, async () => { await loadStoreConfigFromSupabase(); })
         .subscribe();
+    }
+
+    async function loadCategoriesFromSupabase() {
+      if (!supabaseClient) return;
+      const { data, error } = await supabaseClient.from('categories').select('id,name').order('name').limit(500);
+      if (error) throw error;
+      if (data?.length) { CATEGORIES = data.map(row => row.name); localStorage.setItem('nyonya_categories', JSON.stringify(CATEGORIES)); renderCategoriesTable(); }
+    }
+    async function loadTablesFromSupabase() {
+      if (!supabaseClient) return;
+      const { data, error } = await supabaseClient.from('restaurant_tables').select('id,name').order('name').limit(500);
+      if (error) throw error;
+      if (data?.length) { TABLES = data.map(row => row.name); localStorage.setItem('nyonya_tables', JSON.stringify(TABLES)); if (!TABLES.includes(currentTable)) currentTable = TABLES[0]; renderTableOptions(); renderTablesTable(); }
+    }
+    async function loadStoreConfigFromSupabase() {
+      if (!supabaseClient) return;
+      const { data, error } = await supabaseClient.from('store_config').select('id,name,address,phone,footer').eq('id','default').maybeSingle();
+      if (error) throw error;
+      if (data) { storeConfig = { ...storeConfig, ...data }; localStorage.setItem('nyonya_store_config', JSON.stringify(storeConfig)); const header=document.getElementById('header-resto-name'); if(header) header.textContent=storeConfig.name; }
+    }
+    async function loadTransactionHistoryFromSupabase() {
+      if (!supabaseClient || currentUserRole !== 'admin') return;
+      const { data, error } = await supabaseClient.from('transactions').select('trx_id,date,time,table_name,order_type,cashier,subtotal,tax,grand_total,payment_method,items,status,voided_at,void_reason').order('created_at',{ascending:false}).limit(5000);
+      if (error) throw error;
+      TRANSACTION_HISTORY = (data || []).map(row => ({ id: row.trx_id, date: row.date, time: row.time, table: row.table_name, orderType: row.order_type, cashier: row.cashier, items: row.items || [], subtotal:Number(row.subtotal||0), tax:Number(row.tax||0), grandTotal:Number(row.grand_total||0), paymentMethod:row.payment_method, status:row.status, voidedAt:row.voided_at, voidReason:row.void_reason }));
+      localStorage.setItem('nyonya_tx_history', JSON.stringify(TRANSACTION_HISTORY));
+    }
+    async function loadShiftSummaryFromSupabase() {
+      if (!supabaseClient || !CURRENT_CASH_SESSION) return { cash: 0, total: 0, count: 0 };
+      const { data, error } = await supabaseClient.rpc('get_cash_session_summary', { p_session_id: CURRENT_CASH_SESSION.id });
+      if (error) throw error;
+      return { cash: Number(data?.cash_sales || 0), total: Number(data?.total_sales || 0), count: Number(data?.transaction_count || 0) };
     }
 
     async function loadProductsFromSupabase() {
@@ -1160,17 +1194,16 @@
       document.getElementById('header-resto-name').textContent = storeConfig.name;
       setInterval(updateLiveClock, 1000);
       updateLiveClock();
+      updateSupabaseStatusUI();
+      try {
+        await Promise.all([loadCategoriesFromSupabase(), loadTablesFromSupabase(), loadStoreConfigFromSupabase(), loadProductsFromSupabase(), loadRawMaterialsFromSupabase(), loadMembersFromSupabase(), loadActiveBillsFromSupabase(), loadTransactionHistoryFromSupabase()]);
+      } catch (error) { console.error('Gagal memuat data cloud:', error); showToast('Sebagian data cloud gagal dimuat: ' + error.message, 'error'); }
       renderProducts();
       renderTableOptions();
       updateOrderTypeUI();
       renderMemberDropdown();
       renderCart();
       updateActiveBillsCount();
-      updateSupabaseStatusUI();
-      await loadProductsFromSupabase();
-      await loadRawMaterialsFromSupabase();
-      await loadMembersFromSupabase();
-      await loadActiveBillsFromSupabase();
       await loadCurrentCashSession();
       subscribeToProductsRealtime();
       document.getElementById('setting-supabase-url').value = SUPABASE_URL;
@@ -1696,16 +1729,24 @@
     }
     function openAddRawMaterialModal() { document.getElementById('add-raw-material-modal').classList.remove('hidden'); }
     function closeAddRawMaterialModal() { document.getElementById('add-raw-material-modal').classList.add('hidden'); }
-    function saveRawMaterial() {
-      const name = document.getElementById('rm-name-input').value;
+    async function saveRawMaterial() {
+      const name = document.getElementById('rm-name-input').value.trim();
       const stock = parseFloat(document.getElementById('rm-stock-input').value) || 0;
-      const unit = document.getElementById('rm-unit-input').value;
-      if(!name) return;
-      RAW_MATERIALS.push({ id: 'rm_'+Date.now(), name, category: 'Umum', stock, unit, cost: 10000 });
-      localStorage.setItem('nyonya_raw_materials', JSON.stringify(RAW_MATERIALS));
-      closeAddRawMaterialModal(); renderRawMaterialsTable(); showToast('Bahan ditambah', 'success');
+      const unit = document.getElementById('rm-unit-input').value.trim() || 'pcs';
+      if(!name || !supabaseClient) return showToast('Nama bahan dan koneksi Supabase wajib tersedia', 'error');
+      const row = { id: 'rm_'+Date.now(), name, category: 'Umum', stock, unit, cost: 10000 };
+      const { error } = await supabaseClient.from('raw_materials').insert(row);
+      if (error) return showToast('Gagal menyimpan bahan ke Supabase: ' + error.message, 'error');
+      RAW_MATERIALS.push(row); localStorage.setItem('nyonya_raw_materials', JSON.stringify(RAW_MATERIALS));
+      closeAddRawMaterialModal(); renderRawMaterialsTable(); showToast('Bahan tersimpan di Supabase', 'success');
     }
-    function deleteRawMaterial(id) { RAW_MATERIALS = RAW_MATERIALS.filter(r => r.id !== id); localStorage.setItem('nyonya_raw_materials', JSON.stringify(RAW_MATERIALS)); renderRawMaterialsTable(); }
+    async function deleteRawMaterial(id) {
+      if (!supabaseClient) return showToast('Supabase belum tersambung', 'error');
+      if (!confirm('Hapus bahan ini dari Supabase?')) return;
+      const { error } = await supabaseClient.from('raw_materials').delete().eq('id', id);
+      if (error) return showToast('Gagal menghapus bahan: ' + error.message, 'error');
+      RAW_MATERIALS = RAW_MATERIALS.filter(r => r.id !== id); localStorage.setItem('nyonya_raw_materials', JSON.stringify(RAW_MATERIALS)); renderRawMaterialsTable(); showToast('Bahan dihapus dari Supabase', 'success');
+    }
 
     function renderProductsTable() {
       const tbody = document.getElementById('products-table-body'); tbody.innerHTML = '';
@@ -1877,22 +1918,25 @@
       const tbody = document.getElementById('categories-table-body'); tbody.innerHTML = '';
       CATEGORIES.forEach(c => tbody.innerHTML += `<tr><td class="p-3 font-bold">${c}</td><td class="p-3 text-right"></td></tr>`);
     }
-    function addNewCategory() { const v = document.getElementById('new-category-input').value.trim(); if(v) { CATEGORIES.push(v); localStorage.setItem('nyonya_categories', JSON.stringify(CATEGORIES)); renderCategoriesTable(); } }
+    async function addNewCategory() { const v = document.getElementById('new-category-input').value.trim(); if(!v || !supabaseClient) return; const row={id:'cat_'+Date.now(),name:v}; const {error}=await supabaseClient.from('categories').insert(row); if(error) return showToast('Gagal menyimpan kategori: '+error.message,'error'); CATEGORIES.push(v); localStorage.setItem('nyonya_categories',JSON.stringify(CATEGORIES)); renderCategoriesTable(); showToast('Kategori tersimpan di Supabase','success'); }
 
     function renderTablesTable() {
       const tbody = document.getElementById('tables-table-body'); tbody.innerHTML = '';
       TABLES.forEach(t => tbody.innerHTML += `<tr><td class="p-3 font-bold">${t}</td><td class="p-3 text-right"></td></tr>`);
     }
-    function addNewTable() { const v = document.getElementById('new-table-input').value.trim(); if(v) { TABLES.push(v); localStorage.setItem('nyonya_tables', JSON.stringify(TABLES)); renderTablesTable(); renderTableOptions(); } }
+    async function addNewTable() { const v = document.getElementById('new-table-input').value.trim(); if(!v || !supabaseClient) return; const row={id:'table_'+Date.now(),name:v}; const {error}=await supabaseClient.from('restaurant_tables').insert(row); if(error) return showToast('Gagal menyimpan meja: '+error.message,'error'); TABLES.push(v); localStorage.setItem('nyonya_tables',JSON.stringify(TABLES)); renderTablesTable(); renderTableOptions(); showToast('Meja tersimpan di Supabase','success'); }
 
-    function saveStoreSettings() {
+    async function saveStoreSettings() {
       storeConfig.name = document.getElementById('setting-store-name').value.trim() || DEFAULT_STORE_CONFIG.name;
       storeConfig.address = document.getElementById('setting-store-address').value.trim();
       storeConfig.phone = document.getElementById('setting-store-phone').value.trim();
       storeConfig.footer = document.getElementById('setting-store-footer').value.trim();
+      if (!supabaseClient) return showToast('Supabase belum tersambung', 'error');
+      const { error } = await supabaseClient.from('store_config').upsert({ id:'default', name:storeConfig.name, address:storeConfig.address, phone:storeConfig.phone, footer:storeConfig.footer, updated_at:new Date().toISOString() }, { onConflict:'id' });
+      if (error) return showToast('Gagal menyimpan konfigurasi cloud: ' + error.message, 'error');
       localStorage.setItem('nyonya_store_config', JSON.stringify(storeConfig));
       document.getElementById('header-resto-name').textContent = storeConfig.name;
-      showToast('Pengaturan struk berhasil disimpan', 'success');
+      showToast('Pengaturan tersimpan di Supabase', 'success');
     }
 
     async function changeAdminPassword() {
@@ -2009,7 +2053,8 @@
       document.getElementById('rep-tab-summary').className = t === 'summary' ? "px-4 py-2 text-xs font-bold rounded-t-xl bg-white text-emerald-600 border-t border-x border-slate-200" : "px-4 py-2 text-xs font-bold rounded-t-xl text-slate-600 hover:bg-slate-200";
       document.getElementById('rep-tab-daily').className = t === 'daily' ? "px-4 py-2 text-xs font-bold rounded-t-xl bg-white text-emerald-600 border-t border-x border-slate-200" : "px-4 py-2 text-xs font-bold rounded-t-xl text-slate-600 hover:bg-slate-200";
     }
-    function exportHistoryCSV() {
+    async function exportHistoryCSV() {
+      try { await loadTransactionHistoryFromSupabase(); } catch (error) { return showToast('Gagal memuat riwayat cloud: ' + error.message, 'error'); }
       const headers = ['Tanggal','Waktu','Order Type','Metode Pembayaran','Subtotal','Pajak','Service Charge','Diskon','Diskon Member','Total Bayar','Uang Diterima','Kembalian'];
       const esc = value => `"${String(value ?? '').replace(/"/g, '""')}"`;
       const lines = [headers.map(esc).join(',')];
@@ -2069,9 +2114,10 @@
     }
     async function openShiftModal() {
       await loadCurrentCashSession();
-      document.getElementById('shift-cash-total').textContent = CURRENT_CASH_SESSION ? `Rp ${CURRENT_CASH_SESSION.opening_cash.toLocaleString('id-ID')}` : 'Rp 0';
-      document.getElementById('shift-noncash-total').textContent = `Rp ${TRANSACTION_HISTORY.filter(t=>t.paymentMethod!=='Cash').reduce((a,b)=>a+b.grandTotal,0).toLocaleString('id-ID')}`;
-      document.getElementById('shift-trx-count').textContent = TRANSACTION_HISTORY.length;
+      const shiftSummary = await loadShiftSummaryFromSupabase();
+      document.getElementById('shift-cash-total').textContent = `Rp ${Number((CURRENT_CASH_SESSION?.opening_cash || 0) + shiftSummary.cash).toLocaleString('id-ID')}`;
+      document.getElementById('shift-noncash-total').textContent = `Rp ${Math.max(0, shiftSummary.total - shiftSummary.cash).toLocaleString('id-ID')}`;
+      document.getElementById('shift-trx-count').textContent = shiftSummary.count.toLocaleString('id-ID');
       document.getElementById('shift-opening-cash').value = CURRENT_CASH_SESSION?.opening_cash || 500000;
       renderCashSessionUI();
       document.getElementById('shift-modal').classList.remove('hidden');
@@ -2087,8 +2133,7 @@
       const phone = document.getElementById('new-member-phone').value.trim();
       if (!name || !phone) { showToast('Nama dan nomor telepon wajib diisi', 'error'); return; }
       if (!supabaseClient) { showToast('Supabase belum tersambung', 'error'); return; }
-      const member = { id: 'm_' + Date.now(), name, phone, points: 0 };
-      const { error } = await supabaseClient.from('members').insert(member);
+      const { data: member, error } = await supabaseClient.rpc('create_member', { p_id: 'm_' + Date.now(), p_name: name, p_phone: phone });
       if (error) { showToast('Gagal menyimpan member: ' + error.message, 'error'); return; }
       MEMBERS.push(member); renderMemberDropdown(); closeAddMemberModal(); showToast('Member berhasil ditambah di Supabase', 'success');
     }
