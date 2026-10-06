@@ -25,6 +25,7 @@
   <script src="src/data/products.repository.js"></script>
   <script src="src/data/members.repository.js"></script>
   <script src="src/data/tables.repository.js"></script>
+  <script src="src/data/active-bills.repository.js"></script>
 
   <script>
     tailwind.config = {
@@ -1257,10 +1258,11 @@
 
     async function loadActiveBillsFromSupabase() {
       if (!supabaseClient) return;
-      const { data, error } = await supabaseClient.from('active_bills').select('table_name,order_type,items,order_time').limit(500);
+      const { data, error } = await window.POSActiveBillsRepository.list(supabaseClient);
       if (error) throw error;
       ACTIVE_BILLS = {};
-      (data || []).forEach(bill => { ACTIVE_BILLS[bill.table_name] = { table: bill.table_name, orderType: bill.order_type, items: bill.items || [], time: bill.order_time || '' }; });
+      (data || []).map(window.POSActiveBillsRepository.normalizeBill).forEach(bill => { ACTIVE_BILLS[bill.table] = bill; });
+      safeLocalSet('nyonya_active_bills', ACTIVE_BILLS);
       updateActiveBillsCount();
     }
 
@@ -1552,7 +1554,7 @@
       if(CART.length === 0) { showToast('Keranjang kosong!', 'error'); return; }
       const bill = { table: currentTable, orderType: currentOrderType, items: JSON.parse(JSON.stringify(CART)), time: new Date().toLocaleTimeString() };
       if (!supabaseClient) { showToast('Supabase belum tersambung', 'error'); return; }
-      const { error } = await supabaseClient.from('active_bills').upsert({ table_name: currentTable, order_type: currentOrderType, items: bill.items, order_time: bill.time, updated_at: new Date().toISOString() }, { onConflict: 'table_name' });
+      const { error } = await window.POSActiveBillsRepository.save(supabaseClient, { table_name: currentTable, order_type: currentOrderType, items: bill.items, order_time: bill.time, updated_at: new Date().toISOString() });
       if (error) { showToast('Bill dapur gagal disimpan: ' + error.message, 'error'); return; }
       ACTIVE_BILLS[currentTable] = bill;
       safeLocalSet('nyonya_active_bills', ACTIVE_BILLS);
@@ -1754,7 +1756,7 @@
 
       try {
         if (ACTIVE_BILLS[currentTable]) {
-          const { error: billError } = await supabaseClient.from('active_bills').delete().eq('table_name', currentTable);
+          const { error: billError } = await window.POSActiveBillsRepository.remove(supabaseClient, currentTable);
           if (billError) showToast('Pembayaran tersimpan, tetapi bill aktif belum terhapus: ' + billError.message, 'error');
           delete ACTIVE_BILLS[currentTable]; safeLocalSet('nyonya_active_bills', ACTIVE_BILLS); updateActiveBillsCount(); renderTableOptions();
         }
@@ -2317,7 +2319,7 @@
       const button = document.querySelector('#move-table-modal button[onclick="confirmMoveTable()"]');
       if (button) button.disabled = true;
       try {
-        const { data, error } = await supabaseClient.rpc('move_active_bill', { p_from_table: from, p_to_table: to });
+        const { data, error } = await window.POSActiveBillsRepository.move(supabaseClient, from, to);
         if (error) throw error;
         await loadActiveBillsFromSupabase();
         renderTableOptions();
