@@ -814,6 +814,18 @@
             <h4 class="font-bold text-sm text-slate-800 mb-3">Omzet Berdasarkan Metode Pembayaran</h4>
             <div id="rep-payment-breakdown" class="grid grid-cols-2 md:grid-cols-5 gap-2"></div>
           </div>
+          <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
+            <div class="flex items-center justify-between mb-3">
+              <h4 class="font-bold text-sm text-slate-800">Riwayat Void / Pembatalan</h4>
+              <span class="text-[10px] text-slate-400">Termasuk void oleh kasir</span>
+            </div>
+            <div class="overflow-x-auto">
+              <table class="w-full text-left border-collapse text-xs">
+                <thead><tr class="bg-slate-100 text-slate-600 uppercase font-bold text-[10px] border-b"><th class="p-2">Transaksi</th><th class="p-2">Waktu</th><th class="p-2">Kasir</th><th class="p-2">Total</th><th class="p-2">Alasan</th></tr></thead>
+                <tbody id="rep-void-history-body" class="divide-y divide-slate-100"></tbody>
+              </table>
+            </div>
+          </div>
         </div>
 
         <div id="rep-view-daily" class="space-y-4 hidden">
@@ -2111,11 +2123,12 @@
       if (!supabaseClient) throw new Error('Supabase belum tersambung');
       const { data, error } = await supabaseClient
         .from('transactions')
-        .select('date, grand_total, order_type, payment_method, status')
+        .select('trx_id,date,time,grand_total,order_type,payment_method,status,cashier,voided_at,void_reason')
         .order('date', { ascending: false })
         .limit(5000);
       if (error) throw error;
       const rows = (data || []).filter(row => row.status !== 'voided');
+      const voidRows = (data || []).filter(row => row.status === 'voided');
       const totalRev = rows.reduce((sum, row) => sum + Number(row.grand_total || 0), 0);
       const paymentTotals = {};
       rows.forEach(row => {
@@ -2128,6 +2141,12 @@
       document.getElementById('rep-total-orders').textContent = rows.length.toLocaleString('id-ID');
       document.getElementById('rep-avg-order').textContent = `Rp ${Math.round(rows.length ? totalRev / rows.length : 0).toLocaleString('id-ID')}`;
       document.getElementById('rep-inventory-val').textContent = `Rp ${RAW_MATERIALS.reduce((a,b)=>a+b.stock*b.cost,0).toLocaleString('id-ID')}`;
+      const voidBody = document.getElementById('rep-void-history-body');
+      if (voidBody) {
+        voidBody.innerHTML = voidRows.length
+          ? voidRows.map(row => `<tr><td class="p-2 font-mono font-bold">${escapeHtml(row.trx_id)}</td><td class="p-2">${escapeHtml(row.voided_at || `${row.date || ''} ${row.time || ''}`)}</td><td class="p-2">${escapeHtml(row.cashier || '-')}</td><td class="p-2 font-mono">Rp ${Number(row.grand_total || 0).toLocaleString('id-ID')}</td><td class="p-2">${escapeHtml(row.void_reason || '-')}</td></tr>`).join('')
+          : '<tr><td colspan="5" class="p-4 text-center text-slate-400">Belum ada transaksi void.</td></tr>';
+      }
       const grouped = {};
       rows.forEach(row => {
         const date = row.date || 'Tanpa tanggal';
@@ -2165,13 +2184,14 @@
     }
     async function exportHistoryCSV() {
       try { await loadTransactionHistoryFromSupabase(); } catch (error) { return showToast('Gagal memuat riwayat cloud: ' + error.message, 'error'); }
-      const headers = ['Tanggal','Waktu','Order Type','Metode Pembayaran','Subtotal','Pajak','Service Charge','Diskon','Diskon Member','Total Bayar','Uang Diterima','Kembalian'];
+      const headers = ['Transaksi','Tanggal','Waktu','Order Type','Metode Pembayaran','Subtotal','Pajak','Service Charge','Diskon','Diskon Member','Total Bayar','Uang Diterima','Kembalian','Status','Alasan Void','Kasir'];
       const esc = value => `"${String(value ?? '').replace(/"/g, '""')}"`;
       const lines = [headers.map(esc).join(',')];
       TRANSACTION_HISTORY.forEach(tx => lines.push([
-        tx.date, tx.time, tx.orderType, tx.paymentMethod, tx.subtotal, tx.tax,
+        tx.id, tx.date, tx.time, tx.orderType, tx.paymentMethod, tx.subtotal, tx.tax,
         tx.serviceCharge || 0, tx.discount || 0, tx.memberDiscount || 0,
-        tx.grandTotal, tx.cashGiven || tx.grandTotal, tx.change || 0
+        tx.grandTotal, tx.cashGiven || tx.grandTotal, tx.change || 0,
+        tx.status || 'completed', tx.voidReason || '', tx.cashier || ''
       ].map(esc).join(',')));
       const blob = new Blob([ '\ufeff' + lines.join('\n') ], { type: 'text/csv;charset=utf-8;' });
       const url = URL.createObjectURL(blob);
@@ -2233,9 +2253,55 @@
       document.getElementById('shift-modal').classList.remove('hidden');
     }
     function closeShiftModal() { document.getElementById('shift-modal').classList.add('hidden'); }
-    function openMoveTableModal() { document.getElementById('move-from-table').value = currentTable; document.getElementById('move-table-modal').classList.remove('hidden'); }
+    function openMoveTableModal() {
+      const from = currentTable;
+      if (!ACTIVE_BILLS[from]) {
+        showToast('Kirim bill ke dapur terlebih dahulu sebelum pindah meja', 'error');
+        return;
+      }
+      document.getElementById('move-from-table').value = from;
+      const select = document.getElementById('move-to-table-select');
+      select.innerHTML = '';
+      TABLES.filter(table => table !== from).forEach(table => {
+        const option = document.createElement('option');
+        option.value = table;
+        option.textContent = ACTIVE_BILLS[table] ? `${table} (terisi)` : table;
+        option.disabled = Boolean(ACTIVE_BILLS[table]);
+        select.appendChild(option);
+      });
+      if (![...select.options].some(option => !option.disabled)) {
+        showToast('Tidak ada meja kosong untuk tujuan pindah', 'error');
+        return;
+      }
+      document.getElementById('move-table-modal').classList.remove('hidden');
+    }
     function closeMoveTableModal() { document.getElementById('move-table-modal').classList.add('hidden'); }
-    function confirmMoveTable() { closeMoveTableModal(); showToast('Pindah meja sukses', 'success'); }
+    async function confirmMoveTable() {
+      const from = document.getElementById('move-from-table').value;
+      const to = document.getElementById('move-to-table-select').value;
+      if (!from || !to || from === to) return showToast('Meja asal dan tujuan tidak valid', 'error');
+      if (!supabaseClient) return showToast('Supabase belum tersambung', 'error');
+      const button = document.querySelector('#move-table-modal button[onclick="confirmMoveTable()"]');
+      if (button) button.disabled = true;
+      try {
+        const { data, error } = await supabaseClient.rpc('move_active_bill', { p_from_table: from, p_to_table: to });
+        if (error) throw error;
+        await loadActiveBillsFromSupabase();
+        renderTableOptions();
+        currentTable = to;
+        document.getElementById('table-selector').value = to;
+        currentOrderType = data?.order_type || ACTIVE_BILLS[to]?.orderType || 'Dine In';
+        CART = JSON.parse(JSON.stringify(data?.items || ACTIVE_BILLS[to]?.items || []));
+        updateOrderTypeUI();
+        renderCart();
+        closeMoveTableModal();
+        showToast(`Bill berhasil dipindahkan dari ${from} ke ${to}; riwayat tercatat`, 'success');
+      } catch (error) {
+        showToast('Pindah meja gagal: ' + (error?.message || 'kesalahan tidak diketahui'), 'error');
+      } finally {
+        if (button) button.disabled = false;
+      }
+    }
     function openAddMemberModal() { document.getElementById('add-member-modal').classList.remove('hidden'); }
     function closeAddMemberModal() { document.getElementById('add-member-modal').classList.add('hidden'); }
     async function saveNewMember() {
