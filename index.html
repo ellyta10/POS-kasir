@@ -21,6 +21,7 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <!-- Shared utilities: loaded before the legacy app script during incremental refactoring -->
   <script src="src/shared/pos-utils.js"></script>
+  <script src="src/payment/payment-rules.js"></script>
 
   <script>
     tailwind.config = {
@@ -1503,16 +1504,13 @@
     }
 
     function getPaymentBreakdown() {
-      const subtotal = CART.reduce((acc, item) => acc + (item.price * item.qty), 0);
-      const useTax = document.getElementById('tax-toggle-checkbox').checked;
-      const tax = useTax ? subtotal * 0.10 : 0;
-      const serviceRate = parseFloat(document.getElementById('service-charge-select').value) || 0;
-      const serviceCharge = subtotal * serviceRate;
-      const discountRate = parseFloat(document.getElementById('discount-select').value) || 0;
-      const discount = (subtotal + tax + serviceCharge) * discountRate;
-      const memberDiscount = document.getElementById('member-selector').value ? 5000 : 0;
-      const grandTotal = Math.max(0, subtotal + tax + serviceCharge - discount - memberDiscount);
-      return { subtotal, tax, serviceRate, serviceCharge, discountRate, discount, memberDiscount, grandTotal };
+      return window.POSPaymentRules.calculateBreakdown({
+        items: CART,
+        useTax: document.getElementById('tax-toggle-checkbox').checked,
+        serviceRate: parseFloat(document.getElementById('service-charge-select').value) || 0,
+        discountRate: parseFloat(document.getElementById('discount-select').value) || 0,
+        memberSelected: Boolean(document.getElementById('member-selector').value)
+      });
     }
 
     function calculateGrandTotal() {
@@ -1537,7 +1535,7 @@
       Object.entries(buttonIds).forEach(([name, id]) => {
         const btn = document.getElementById(id);
         if (!btn) return;
-        const hiddenForOrderType = (name === 'Gojek App' && currentOrderType !== 'Gojek') || (name === 'Grab App' && currentOrderType !== 'Grab');
+        const hiddenForOrderType = !window.POSPaymentRules.isPaymentMethodAllowed(name, currentOrderType);
         btn.className = `${name === method
           ? 'py-2 px-1 rounded-xl text-[10px] font-bold transition border border-brand-500 bg-brand-50 text-brand-700 flex flex-col items-center gap-0.5'
           : 'py-2 px-1 rounded-xl text-[10px] font-bold transition border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 flex flex-col items-center gap-0.5'}${hiddenForOrderType ? ' hidden' : ''}`;
