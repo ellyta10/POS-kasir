@@ -2154,7 +2154,7 @@
       const [{ data: materials, error: materialError }, { data: movements, error: movementError }, { data: shifts, error: shiftError }] = await Promise.all([
         supabaseClient.from('raw_materials').select('id,name,stock,unit,cost').order('name').limit(500),
         supabaseClient.from('inventory_movements').select('raw_material_id,quantity,movement_type,created_at,notes').gte('created_at', `${range.from}T00:00:00`).lte('created_at', `${range.to}T23:59:59`).order('created_at', { ascending: false }).limit(5000),
-        supabaseClient.from('cash_sessions').select('id,user_id,opened_at,closed_at,opening_cash,closing_cash,expected_cash,difference,status').order('opened_at', { ascending: false }).limit(500)
+        supabaseClient.from('cash_sessions').select('id,user_id,opened_at,closed_at,opening_cash,closing_cash,expected_cash,difference,status').gte('opened_at', `${range.from}T00:00:00`).lte('opened_at', `${range.to}T23:59:59`).order('opened_at', { ascending: false }).limit(500)
       ]);
       if (materialError) throw materialError; if (movementError) throw movementError; if (shiftError) throw shiftError;
       REPORT_MATERIALS = materials || []; REPORT_MOVEMENTS = movements || []; REPORT_SHIFTS = shifts || [];
