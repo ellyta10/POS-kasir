@@ -24,6 +24,7 @@
   <script src="src/payment/payment-rules.js"></script>
   <script src="src/data/products.repository.js"></script>
   <script src="src/data/members.repository.js"></script>
+  <script src="src/data/tables.repository.js"></script>
 
   <script>
     tailwind.config = {
@@ -937,9 +938,15 @@
     }
     async function loadTablesFromSupabase() {
       if (!supabaseClient) return;
-      const { data, error } = await supabaseClient.from('restaurant_tables').select('id,name').order('name').limit(500);
+      const { data, error } = await window.POSTablesRepository.list(supabaseClient);
       if (error) throw error;
-      if (data?.length) { TABLES = data.map(row => row.name); safeLocalSet('nyonya_tables', TABLES); if (!TABLES.includes(currentTable)) currentTable = TABLES[0]; renderTableOptions(); renderTablesTable(); }
+      if (data?.length) {
+        TABLES = data.map(window.POSTablesRepository.normalizeTable).map(row => row.name);
+        safeLocalSet('nyonya_tables', TABLES);
+        if (!TABLES.includes(currentTable)) currentTable = TABLES[0];
+        renderTableOptions();
+        renderTablesTable();
+      }
     }
     async function loadStoreConfigFromSupabase() {
       if (!supabaseClient) return;
@@ -2030,7 +2037,7 @@
       const tbody = document.getElementById('tables-table-body');
       tbody.innerHTML = TABLES.map(t => `<tr><td class="p-3 font-bold">${escapeHtml(t)}</td><td class="p-3 text-right"></td></tr>`).join('');
     }
-    async function addNewTable() { const v = document.getElementById('new-table-input').value.trim(); if(!v || !supabaseClient) return; const row={id:'table_'+Date.now(),name:v}; const {error}=await supabaseClient.from('restaurant_tables').insert(row); if(error) return showToast('Gagal menyimpan meja: '+error.message,'error'); TABLES.push(v); safeLocalSet('nyonya_tables',TABLES); renderTablesTable(); renderTableOptions(); showToast('Meja tersimpan di Supabase','success'); }
+    async function addNewTable() { const v = document.getElementById('new-table-input').value.trim(); if(!v || !supabaseClient) return; const row={id:'table_'+Date.now(),name:v}; const {error}=await window.POSTablesRepository.create(supabaseClient, row); if(error) return showToast('Gagal menyimpan meja: '+error.message,'error'); TABLES.push(v); safeLocalSet('nyonya_tables',TABLES); renderTablesTable(); renderTableOptions(); showToast('Meja tersimpan di Supabase','success'); }
 
     async function saveStoreSettings() {
       storeConfig.name = document.getElementById('setting-store-name').value.trim() || DEFAULT_STORE_CONFIG.name;
