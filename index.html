@@ -2253,16 +2253,35 @@
       document.getElementById('shift-modal').classList.remove('hidden');
     }
     function closeShiftModal() { document.getElementById('shift-modal').classList.add('hidden'); }
-    function openMoveTableModal() {
+    async function openMoveTableModal() {
       const from = currentTable;
+      // Refresh terlebih dahulu agar bill yang baru dikirim ke dapur atau
+      // dibuat dari perangkat lain tidak hanya bergantung pada cache browser.
+      if (supabaseClient) {
+        try {
+          await loadActiveBillsFromSupabase();
+          renderTableOptions();
+        } catch (error) {
+          console.warn('Gagal menyegarkan bill sebelum pindah meja:', error);
+        }
+      }
       if (!ACTIVE_BILLS[from]) {
-        showToast('Kirim bill ke dapur terlebih dahulu sebelum pindah meja', 'error');
+        showToast(`Bill aktif untuk ${from} tidak ditemukan. Pastikan order sudah dikirim ke koki.`, 'error');
         return;
       }
       document.getElementById('move-from-table').value = from;
       const select = document.getElementById('move-to-table-select');
       select.innerHTML = '';
-      TABLES.filter(table => table !== from).forEach(table => {
+      const selectorTables = [...document.querySelectorAll('#table-selector option')].map(option => option.value);
+      const availableTables = TABLES.length ? TABLES : selectorTables;
+      const destinationTables = [...new Set(availableTables)].filter(table => table !== from);
+      const placeholder = document.createElement('option');
+      placeholder.value = '';
+      placeholder.textContent = destinationTables.length ? 'Pilih meja tujuan' : 'Meja tujuan belum tersedia';
+      placeholder.disabled = true;
+      placeholder.selected = true;
+      select.appendChild(placeholder);
+      destinationTables.forEach(table => {
         const option = document.createElement('option');
         option.value = table;
         option.textContent = ACTIVE_BILLS[table] ? `${table} (terisi)` : table;
