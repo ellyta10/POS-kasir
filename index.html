@@ -1411,7 +1411,27 @@
       const select = document.getElementById('table-selector');
       if(select) { select.innerHTML = ''; TABLES.forEach(t => { const opt = document.createElement('option'); opt.value = t; opt.textContent = t + (ACTIVE_BILLS[t] ? ' [TERISI]' : ''); select.appendChild(opt); }); select.value = currentTable; }
     }
-    function onTableSelectionChange() { currentTable = document.getElementById('table-selector').value; CART = ACTIVE_BILLS[currentTable] ? JSON.parse(JSON.stringify(ACTIVE_BILLS[currentTable].items)) : []; renderCart(); }
+    function onTableSelectionChange() {
+      currentTable = document.getElementById('table-selector').value;
+      const bill = ACTIVE_BILLS[currentTable];
+      if (bill) {
+        currentOrderType = bill.orderType || 'Dine In';
+        CART = JSON.parse(JSON.stringify(bill.items || []));
+        CART.forEach(item => {
+          const product = PRODUCTS.find(productRow => productRow.id === item.id);
+          if (product) item.price = getProductPrice(product, currentOrderType);
+        });
+      } else {
+        currentOrderType = 'Dine In';
+        CART = [];
+      }
+      updateOrderTypeUI();
+      if (currentOrderType === 'Gojek') setPaymentMethod('Gojek App');
+      else if (currentOrderType === 'Grab') setPaymentMethod('Grab App');
+      else setPaymentMethod('Cash');
+      renderProducts();
+      renderCart();
+    }
     function renderMemberDropdown() {
       const select = document.getElementById('member-selector');
       if(select) { select.innerHTML = '<option value="">-- Umum / Tanpa Member --</option>'; MEMBERS.forEach(m => { const opt = document.createElement('option'); opt.value = m.id; opt.textContent = `${m.name} (${m.phone})`; select.appendChild(opt); }); }
@@ -2154,7 +2174,7 @@
       const [{ data: materials, error: materialError }, { data: movements, error: movementError }, { data: shifts, error: shiftError }] = await Promise.all([
         supabaseClient.from('raw_materials').select('id,name,stock,unit,cost').order('name').limit(500),
         supabaseClient.from('inventory_movements').select('raw_material_id,quantity,movement_type,created_at,notes').gte('created_at', `${range.from}T00:00:00`).lte('created_at', `${range.to}T23:59:59`).order('created_at', { ascending: false }).limit(5000),
-        supabaseClient.from('cash_sessions').select('id,user_id,opened_at,closed_at,opening_cash,closing_cash,expected_cash,difference,status').gte('opened_at', `${range.from}T00:00:00`).lte('opened_at', `${range.to}T23:59:59`).order('opened_at', { ascending: false }).limit(500)
+        supabaseClient.from('cash_sessions').select('id,user_id,opened_at,closed_at,opening_cash,closing_cash,expected_cash,difference,status').lte('opened_at', `${range.to}T23:59:59`).or(`closed_at.gte.${range.from}T00:00:00,closed_at.is.null`).order('opened_at', { ascending: false }).limit(500)
       ]);
       if (materialError) throw materialError; if (movementError) throw movementError; if (shiftError) throw shiftError;
       REPORT_MATERIALS = materials || []; REPORT_MOVEMENTS = movements || []; REPORT_SHIFTS = shifts || [];
