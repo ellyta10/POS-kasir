@@ -22,6 +22,7 @@
   <!-- Shared utilities: loaded before the legacy app script during incremental refactoring -->
   <script src="src/shared/pos-utils.js"></script>
   <script src="src/payment/payment-rules.js"></script>
+  <script src="src/data/products.repository.js"></script>
 
   <script>
     tailwind.config = {
@@ -965,32 +966,16 @@
       }
 
       try {
-        const { data, error } = await supabaseClient
-          .from('products')
-          .select('id, name, category, price, gojek_price, grab_price, emoji, available, recipe')
-          .order('name')
-          .limit(500);
+        const { data, error } = await window.POSProductsRepository.list(supabaseClient);
 
         if (error) throw error;
 
         // Jika tabel cloud kosong, kirim data menu lokal satu kali.
         if (!data || data.length === 0) {
-          const localProducts = PRODUCTS.map(product => ({
-            id: product.id,
-            name: product.name,
-            category: product.category,
-            price: Number(product.price) || 0,
-            gojek_price: Number(product.gojek_price) || Number(product.price) || 0,
-            grab_price: Number(product.grab_price) || Number(product.price) || 0,
-            emoji: product.emoji || '🍽️',
-            available: product.available !== false,
-            recipe: product.recipe || []
-          }));
+          const localProducts = PRODUCTS.map(window.POSProductsRepository.toCloudProduct);
 
           if (localProducts.length > 0) {
-            const { error: uploadError } = await supabaseClient
-              .from('products')
-              .upsert(localProducts, { onConflict: 'id' });
+            const { error: uploadError } = await window.POSProductsRepository.upsert(supabaseClient, localProducts);
 
             if (uploadError) throw uploadError;
             showToast('Menu lokal berhasil dikirim ke Supabase', 'success');
@@ -999,17 +984,7 @@
         }
 
         // Jika cloud sudah memiliki data, cloud menjadi sumber utama.
-        PRODUCTS = data.map(product => ({
-          id: product.id,
-          name: product.name,
-          category: product.category,
-          price: Number(product.price) || 0,
-          gojek_price: Number(product.gojek_price) || Number(product.price) || 0,
-          grab_price: Number(product.grab_price) || Number(product.price) || 0,
-          emoji: product.emoji || '🍽️',
-          available: product.available !== false,
-          recipe: product.recipe || []
-        }));
+        PRODUCTS = data.map(window.POSProductsRepository.normalizeProduct);
 
         safeLocalSet('nyonya_products', PRODUCTS);
         renderProducts();
@@ -1899,13 +1874,12 @@
       }
 
       try {
-        const { error } = await supabaseClient
-          .from('products')
-          .update({
-            available: product.available,
-            updated_at: new Date().toISOString()
-          })
-          .eq('id', product.id);
+        const { error } = await window.POSProductsRepository.updateAvailability(
+          supabaseClient,
+          product.id,
+          product.available,
+          new Date().toISOString()
+        );
 
         if (error) throw error;
 
@@ -1997,9 +1971,10 @@
       }
 
       try {
-        const { error } = await supabaseClient
-          .from('products')
-          .upsert({ ...product, updated_at: new Date().toISOString() }, { onConflict: 'id' });
+        const { error } = await window.POSProductsRepository.upsert(
+          supabaseClient,
+          { ...product, updated_at: new Date().toISOString() }
+        );
         if (error) throw error;
 
         const index = PRODUCTS.findIndex(item => item.id === product.id);
@@ -2027,7 +2002,7 @@
         return;
       }
       try {
-        const { error } = await supabaseClient.from('products').delete().eq('id', id);
+        const { error } = await window.POSProductsRepository.remove(supabaseClient, id);
         if (error) throw error;
         PRODUCTS = PRODUCTS.filter(item => item.id !== id);
         safeLocalSet('nyonya_products', PRODUCTS);
