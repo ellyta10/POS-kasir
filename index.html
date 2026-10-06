@@ -26,6 +26,7 @@
   <script src="src/data/members.repository.js"></script>
   <script src="src/data/tables.repository.js"></script>
   <script src="src/data/active-bills.repository.js"></script>
+  <script src="src/data/cash-sessions.repository.js"></script>
 
   <script>
     tailwind.config = {
@@ -927,6 +928,7 @@
         .on('postgres_changes', { event: '*', schema: 'public', table: 'categories' }, async () => { await loadCategoriesFromSupabase(); })
         .on('postgres_changes', { event: '*', schema: 'public', table: 'restaurant_tables' }, async () => { await loadTablesFromSupabase(); renderTableOptions(); })
         .on('postgres_changes', { event: '*', schema: 'public', table: 'members' }, async () => { await loadMembersFromSupabase(); })
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'cash_sessions' }, async () => { await loadCurrentCashSession(); renderCashSessionUI(); })
         .on('postgres_changes', { event: '*', schema: 'public', table: 'store_config' }, async () => { await loadStoreConfigFromSupabase(); })
         .subscribe();
     }
@@ -964,7 +966,7 @@
     }
     async function loadShiftSummaryFromSupabase() {
       if (!supabaseClient || !CURRENT_CASH_SESSION) return { cash: 0, total: 0, count: 0 };
-      const { data, error } = await supabaseClient.rpc('get_cash_session_summary', { p_session_id: CURRENT_CASH_SESSION.id });
+      const { data, error } = await window.POSCashSessionsRepository.summary(supabaseClient, CURRENT_CASH_SESSION.id);
       if (error) throw error;
       return { cash: Number(data?.cash_sales || 0), total: Number(data?.total_sales || 0), count: Number(data?.transaction_count || 0) };
     }
@@ -2170,7 +2172,7 @@
       const [{ data: materials, error: materialError }, { data: movements, error: movementError }, { data: shifts, error: shiftError }] = await Promise.all([
         supabaseClient.from('raw_materials').select('id,name,stock,unit,cost').order('name').limit(500),
         supabaseClient.from('inventory_movements').select('raw_material_id,quantity,movement_type,created_at,notes').gte('created_at', `${range.from}T00:00:00`).lte('created_at', `${range.to}T23:59:59`).order('created_at', { ascending: false }).limit(5000),
-        supabaseClient.from('cash_sessions').select('id,user_id,opened_at,closed_at,opening_cash,closing_cash,expected_cash,difference,status').lte('opened_at', `${range.to}T23:59:59`).or(`closed_at.gte.${range.from}T00:00:00,closed_at.is.null`).order('opened_at', { ascending: false }).limit(500)
+        window.POSCashSessionsRepository.listForReport(supabaseClient, range)
       ]);
       if (materialError) throw materialError; if (movementError) throw movementError; if (shiftError) throw shiftError;
       REPORT_MATERIALS = materials || []; REPORT_MOVEMENTS = movements || []; REPORT_SHIFTS = shifts || [];
@@ -2216,7 +2218,7 @@
 
     async function loadCurrentCashSession() {
       if (!supabaseClient || !currentAuthSession) return;
-      const { data, error } = await supabaseClient.from('cash_sessions').select('id,status,opening_cash,opened_at,closed_at,closing_cash,expected_cash,difference').eq('user_id', currentAuthSession.user.id).eq('status', 'open').order('opened_at', { ascending: false }).limit(1).maybeSingle();
+      const { data, error } = await window.POSCashSessionsRepository.current(supabaseClient, currentAuthSession.user.id);
       if (error) { console.error('Gagal memuat shift:', error); return; }
       CURRENT_CASH_SESSION = data || null;
     }
@@ -2238,7 +2240,7 @@
     async function startCashSession() {
       if (!supabaseClient) return showToast('Supabase belum tersambung', 'error');
       const opening = Number(document.getElementById('shift-opening-cash').value || 0);
-      const { data, error } = await supabaseClient.rpc('open_cash_session', { p_opening_cash: opening });
+      const { data, error } = await window.POSCashSessionsRepository.open(supabaseClient, opening);
       if (error) return showToast('Gagal membuka shift: ' + error.message, 'error');
       CURRENT_CASH_SESSION = data;
       renderCashSessionUI();
@@ -2248,7 +2250,7 @@
       if (!CURRENT_CASH_SESSION) return showToast('Tidak ada shift aktif', 'error');
       const raw = document.getElementById('shift-closing-cash').value.trim();
       if (raw === '') return showToast('Masukkan kas fisik saat tutup shift', 'error');
-      const { data, error } = await supabaseClient.rpc('close_cash_session', { p_session_id: CURRENT_CASH_SESSION.id, p_actual_cash: Number(raw) });
+      const { data, error } = await window.POSCashSessionsRepository.close(supabaseClient, CURRENT_CASH_SESSION.id, Number(raw));
       if (error) return showToast('Gagal menutup shift: ' + error.message, 'error');
       CURRENT_CASH_SESSION = null;
       renderCashSessionUI();
