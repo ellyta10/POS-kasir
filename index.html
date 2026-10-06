@@ -27,6 +27,7 @@
   <script src="src/data/tables.repository.js"></script>
   <script src="src/data/active-bills.repository.js"></script>
   <script src="src/data/cash-sessions.repository.js"></script>
+  <script src="src/data/transactions.repository.js"></script>
 
   <script>
     tailwind.config = {
@@ -960,7 +961,7 @@
     // Riwayat transaksi HANYA dimuat saat dibutuhkan (Export CSV) dan tidak disimpan ke localStorage.
     async function loadTransactionHistoryFromSupabase() {
       if (!supabaseClient || currentUserRole !== 'admin') return;
-      const { data, error } = await supabaseClient.from('transactions').select('trx_id,date,time,table_name,order_type,cashier,subtotal,tax,grand_total,payment_method,items,status,voided_at,void_reason').order('created_at',{ascending:false}).limit(5000);
+      const { data, error } = await window.POSTransactionsRepository.listHistory(supabaseClient);
       if (error) throw error;
       TRANSACTION_HISTORY = (data || []).map(row => ({ id: row.trx_id, date: row.date, time: row.time, table: row.table_name, orderType: row.order_type, cashier: row.cashier, items: row.items || [], subtotal:Number(row.subtotal||0), tax:Number(row.tax||0), grandTotal:Number(row.grand_total||0), paymentMethod:row.payment_method, status:row.status, voidedAt:row.voided_at, voidReason:row.void_reason }));
     }
@@ -1224,7 +1225,7 @@
     async function syncTransactionToSupabase(tx) {
       if (!supabaseClient) throw new Error('Supabase belum tersambung');
       const summary = getPaymentBreakdown();
-      const { data, error } = await supabaseClient.rpc('checkout_atomic', {
+      const { data, error } = await window.POSTransactionsRepository.checkoutAtomic(supabaseClient, {
         p_trx_id: tx.id,
         p_order_type: tx.orderType,
         p_table_name: tx.table,
@@ -2101,7 +2102,7 @@
       if (!trxId || !reason) { showToast('Nomor transaksi dan alasan wajib diisi', 'error'); return; }
       if (!currentAuthSession) { showToast('Sesi login sudah berakhir', 'error'); return; }
       if (!confirm(`Void transaksi ${trxId}? Transaksi tidak akan dihapus.`)) return;
-      const { error } = await supabaseClient.rpc('void_transaction', { p_trx_id: trxId, p_reason: reason });
+      const { error } = await window.POSTransactionsRepository.voidTransaction(supabaseClient, trxId, reason);
       if (error) { showToast('Void gagal: ' + error.message, 'error'); return; }
       closeVoidModal();
       showToast('Transaksi berhasil di-void dan dicatat di audit log', 'success');
@@ -2149,16 +2150,11 @@
       showToast('Dashboard laporan dimuat dari Supabase', 'success');
     }
     async function loadReportRows(range, cashier, orderType) {
-      let query = supabaseClient.from('transactions').select('id,trx_id,date,time,table_name,order_type,cashier,subtotal,tax,grand_total,payment_method,items,status,voided_at,voided_by,void_reason').gte('date', range.from).lte('date', range.to).order('created_at', { ascending: false }).limit(5000);
-      if (cashier) query = query.eq('cashier', cashier); if (orderType) query = query.eq('order_type', orderType);
+      const query = window.POSTransactionsRepository.listReportRows(supabaseClient, { from: range.from, to: range.to, cashier, orderType });
       const { data, error } = await query; if (error) throw error; REPORT_ROWS = data || [];
       const transactionIds = REPORT_ROWS.map(row => row.id).filter(Boolean);
       if (transactionIds.length) {
-        const { data: orderItems, error: orderItemsError } = await supabaseClient
-          .from('order_items')
-          .select('transaction_id,product_id,product_name,unit_price,quantity,line_total')
-          .in('transaction_id', transactionIds)
-          .limit(10000);
+        const { data: orderItems, error: orderItemsError } = await window.POSTransactionsRepository.listOrderItems(supabaseClient, transactionIds);
         if (orderItemsError) throw orderItemsError;
         REPORT_ORDER_ITEMS = orderItems || [];
       } else {
