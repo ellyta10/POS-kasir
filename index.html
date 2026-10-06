@@ -1668,7 +1668,7 @@
       if (checkoutInFlight) return; // klik ganda / ketukan berulang diabaikan
       if (!document.getElementById('receipt-modal').classList.contains('hidden')) return; // struk sebelumnya masih terbuka
       if(CART.length === 0) { showToast('Keranjang kosong!', 'error'); return; }
-      if (!CURRENT_CASH_SESSION) { showToast('Buka shift kasir terlebih dahulu', 'error'); openShiftModal(); return; }
+      if (!CURRENT_CASH_SESSION) { closePaymentModal(); showToast('Buka shift kasir terlebih dahulu', 'error'); openShiftModal(); return; }
       const summary = getPaymentBreakdown();
       const gt = summary.grandTotal;
       const given = currentPaymentMethod === 'Cash' ? (parseFloat(document.getElementById('cash-given-input').value) || 0) : gt;
