@@ -1076,6 +1076,8 @@
     let currentTable = TABLES[0];
     let currentPaymentMethod = 'Cash';
     let currentCategoryFilter = 'Semua';
+    // Meja asal cart yang sedang dipanggil dari active bill; null berarti draft baru.
+    let loadedActiveBillTable = null;
 
     // ===== Status checkout (Batch 1) =====
     let checkoutInFlight = false;   // true selama permintaan pembayaran berjalan
@@ -1360,9 +1362,16 @@
       });
       const tableWrapper = document.getElementById('table-select-wrapper');
       if (tableWrapper) tableWrapper.classList.toggle('hidden', currentOrderType !== 'Dine In');
+      const moveButton = document.getElementById('btn-move-table');
+      if (moveButton) moveButton.classList.toggle('hidden', currentOrderType !== 'Dine In');
     }
 
     function setOrderType(type) {
+      if (loadedActiveBillTable && type !== 'Dine In') {
+        showToast(`Bill aktif ${loadedActiveBillTable} hanya dapat diproses sebagai Dine In`, 'error');
+        updateOrderTypeUI();
+        return;
+      }
       currentOrderType = type;
       CART.forEach(item => {
         const product = PRODUCTS.find(p => p.id === item.id);
@@ -1380,18 +1389,39 @@
       if(select) { select.innerHTML = ''; TABLES.forEach(t => { const opt = document.createElement('option'); opt.value = t; opt.textContent = t + (ACTIVE_BILLS[t] ? ' [TERISI]' : ''); select.appendChild(opt); }); select.value = currentTable; }
     }
     function onTableSelectionChange() {
-      currentTable = document.getElementById('table-selector').value;
-      const bill = ACTIVE_BILLS[currentTable];
+      const select = document.getElementById('table-selector');
+      const previousTable = currentTable;
+      const nextTable = select.value;
+      const bill = ACTIVE_BILLS[nextTable];
+      if (nextTable === previousTable) return;
+      if (bill && (CART.length || loadedActiveBillTable)) {
+        const confirmed = window.confirm(`Meja ${nextTable} sudah memiliki pesanan aktif. Buka pesanan tersebut? Draft yang sedang tampil tidak akan dihapus dari server.`);
+        if (!confirmed) {
+          select.value = previousTable;
+          return;
+        }
+      }
+      if (!bill && loadedActiveBillTable && loadedActiveBillTable !== nextTable) {
+        const confirmed = window.confirm(`Pesanan aktif dari ${loadedActiveBillTable} sedang dibuka. Pindah ke meja kosong akan membuat draft baru dan mengosongkan tampilan cart. Lanjutkan?`);
+        if (!confirmed) {
+          select.value = previousTable;
+          return;
+        }
+        CART = [];
+        loadedActiveBillTable = null;
+      }
+      currentTable = nextTable;
       if (bill) {
         currentOrderType = bill.orderType || 'Dine In';
+        loadedActiveBillTable = nextTable;
         CART = JSON.parse(JSON.stringify(bill.items || []));
         CART.forEach(item => {
           const product = PRODUCTS.find(productRow => productRow.id === item.id);
           if (product) item.price = getProductPrice(product, currentOrderType);
         });
       } else {
+        // Draft baru tetap dipertahankan saat memilih meja kosong.
         currentOrderType = 'Dine In';
-        CART = [];
       }
       updateOrderTypeUI();
       if (currentOrderType === 'Gojek') setPaymentMethod('Gojek App');
@@ -1585,7 +1615,7 @@
 
     function closeKitchenModal() {
       document.getElementById('kitchen-ticket-modal').classList.add('hidden');
-      CART = []; renderCart();
+      CART = []; loadedActiveBillTable = null; renderCart();
     }
 
     function updateActiveBillsCount() { document.getElementById('active-bills-count').textContent = Object.keys(ACTIVE_BILLS).length; }
@@ -1611,6 +1641,7 @@
       if (!ACTIVE_BILLS[tbl]) { showToast('Bill tidak ditemukan', 'error'); return; }
       currentTable = tbl; document.getElementById('table-selector').value = tbl;
       currentOrderType = ACTIVE_BILLS[tbl].orderType || 'Dine In';
+      loadedActiveBillTable = tbl;
       updateOrderTypeUI();
       CART = JSON.parse(JSON.stringify(ACTIVE_BILLS[tbl].items));
       renderCart(); closeRecallBillsModal(); showToast(`Bill ${tbl} dipanggil`, 'success');
@@ -1804,7 +1835,7 @@
       document.getElementById('receipt-modal').classList.remove('hidden');
       if (printerConfig.autoReceipt) setTimeout(printReceipt, 350);
     }
-    function closeReceiptModal() { document.getElementById('receipt-modal').classList.add('hidden'); CART = []; checkoutAttempt = null; renderCart(); }
+    function closeReceiptModal() { document.getElementById('receipt-modal').classList.add('hidden'); CART = []; loadedActiveBillTable = null; checkoutAttempt = null; renderCart(); }
 
     function openUserSwitchModal() {
       const email = document.getElementById('account-modal-email');
@@ -2273,6 +2304,10 @@
     }
     function closeShiftModal() { document.getElementById('shift-modal').classList.add('hidden'); }
     async function openMoveTableModal() {
+      if (currentOrderType !== 'Dine In') {
+        showToast('Pindah meja hanya tersedia untuk pesanan Dine In', 'error');
+        return;
+      }
       const from = currentTable;
       // Refresh terlebih dahulu agar bill yang baru dikirim ke dapur atau
       // dibuat dari perangkat lain tidak hanya bergantung pada cache browser.
@@ -2329,6 +2364,7 @@
         currentTable = to;
         document.getElementById('table-selector').value = to;
         currentOrderType = data?.order_type || ACTIVE_BILLS[to]?.orderType || 'Dine In';
+        loadedActiveBillTable = to;
         CART = JSON.parse(JSON.stringify(data?.items || ACTIVE_BILLS[to]?.items || []));
         updateOrderTypeUI();
         renderCart();
