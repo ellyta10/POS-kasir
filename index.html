@@ -44,6 +44,7 @@
   </script>
 
   <style>
+    .rep-tab{color:#475569;background:transparent;border-bottom:3px solid transparent}.rep-tab:hover{background:#f8fafc}.rep-tab-active{color:#059669;background:#fff;border-top:1px solid #e2e8f0;border-left:1px solid #e2e8f0;border-right:1px solid #e2e8f0;border-bottom:3px solid #10b981}
     .no-scrollbar::-webkit-scrollbar { display: none; }
     .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
     
@@ -773,95 +774,39 @@
 
   <!-- MODAL: REPORTS & ANALYTICS -->
   <div id="reports-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
-    <div class="bg-white w-full max-w-6xl h-[90vh] rounded-2xl shadow-2xl flex flex-col overflow-hidden">
+    <div class="bg-white w-full max-w-7xl h-[92vh] rounded-2xl shadow-2xl flex flex-col overflow-hidden">
       <div class="bg-slate-900 text-white px-5 py-3.5 flex justify-between items-center shrink-0">
-        <div class="flex items-center gap-2">
-          <i class="fa-solid fa-chart-pie text-emerald-400 text-lg"></i>
-          <div>
-            <h3 class="font-bold text-sm">Dashboard Laporan & Analitik Restoran</h3>
-            <p class="text-[11px] text-slate-400">Sinkronisasi data dari Supabase Cloud</p>
-          </div>
-        </div>
-        <button onclick="closeReportsModal()" class="w-8 h-8 rounded-full bg-slate-800 hover:bg-slate-700 flex items-center justify-center text-slate-300 transition"><i class="fa-solid fa-xmark"></i></button>
+        <div class="flex items-center gap-2"><i class="fa-solid fa-chart-line text-emerald-400 text-lg"></i><div><h3 class="font-bold text-sm">Dashboard Laporan & Analitik Restoran</h3><p class="text-[11px] text-slate-400">Data bersih dari transaksi selesai · khusus admin</p></div></div>
+        <div class="flex items-center gap-3"><span id="rep-last-loaded" class="hidden sm:block text-[10px] text-slate-400"></span><button onclick="closeReportsModal()" class="w-8 h-8 rounded-full bg-slate-800 hover:bg-slate-700 flex items-center justify-center text-slate-300 transition"><i class="fa-solid fa-xmark"></i></button></div>
       </div>
-
-      <div class="flex border-b border-slate-200 bg-slate-100 px-5 pt-3 gap-2 shrink-0">
-        <button onclick="switchReportTab('summary')" id="rep-tab-summary" class="px-4 py-2 text-xs font-bold rounded-t-xl bg-white text-emerald-600 border-t border-x border-slate-200">📊 Ringkasan</button>
-        <button onclick="switchReportTab('daily')" id="rep-tab-daily" class="px-4 py-2 text-xs font-bold rounded-t-xl text-slate-600 hover:bg-slate-200">📅 Laporan Harian</button>
+      <div class="flex border-b border-slate-200 bg-slate-100 px-4 pt-3 gap-1 overflow-x-auto shrink-0">
+        <button onclick="switchReportTab('summary')" id="rep-tab-summary" class="rep-tab-active px-4 py-2 text-xs font-bold rounded-t-xl whitespace-nowrap">📊 Ringkasan</button>
+        <button onclick="switchReportTab('products')" id="rep-tab-products" class="rep-tab px-4 py-2 text-xs font-bold rounded-t-xl whitespace-nowrap">🍽️ Penjualan Produk</button>
+        <button onclick="switchReportTab('shifts')" id="rep-tab-shifts" class="rep-tab px-4 py-2 text-xs font-bold rounded-t-xl whitespace-nowrap">💵 Kas & Shift</button>
+        <button onclick="switchReportTab('inventory')" id="rep-tab-inventory" class="rep-tab px-4 py-2 text-xs font-bold rounded-t-xl whitespace-nowrap">📦 Stok & Bahan</button>
+        <button onclick="switchReportTab('voids')" id="rep-tab-voids" class="rep-tab px-4 py-2 text-xs font-bold rounded-t-xl whitespace-nowrap">🧾 Void & Audit</button>
+        <button onclick="switchReportTab('transactions')" id="rep-tab-transactions" class="rep-tab px-4 py-2 text-xs font-bold rounded-t-xl whitespace-nowrap">↺ Riwayat Transaksi</button>
       </div>
-
-      <div class="flex-1 p-5 overflow-y-auto bg-slate-50 space-y-4">
+      <div class="flex-1 p-4 md:p-5 overflow-y-auto bg-slate-50 space-y-4">
         <div class="bg-white p-3 rounded-2xl border border-slate-200 shadow-sm flex flex-wrap items-end gap-2">
-          <div>
-            <label for="report-period-select" class="block text-[10px] font-bold text-slate-500 uppercase mb-1">Periode laporan</label>
-            <select id="report-period-select" onchange="toggleReportCustomDates()" class="px-3 py-2 rounded-xl border border-slate-200 text-xs font-bold">
-              <option value="today">Hari ini</option>
-              <option value="yesterday">Kemarin</option>
-              <option value="week">Minggu ini</option>
-              <option value="month">Bulan ini</option>
-              <option value="custom">Custom</option>
-            </select>
-          </div>
-          <div id="report-custom-dates" class="hidden flex flex-wrap items-end gap-2">
-            <div><label for="report-start-date" class="block text-[10px] font-bold text-slate-500 uppercase mb-1">Dari</label><input id="report-start-date" type="date" class="px-3 py-2 rounded-xl border border-slate-200 text-xs"></div>
-            <div><label for="report-end-date" class="block text-[10px] font-bold text-slate-500 uppercase mb-1">Sampai</label><input id="report-end-date" type="date" class="px-3 py-2 rounded-xl border border-slate-200 text-xs"></div>
-          </div>
-          <button onclick="loadReportsFromSupabase()" class="px-4 py-2 bg-emerald-600 text-white text-xs font-bold rounded-xl">Terapkan</button>
-          <span id="report-period-label" class="text-[10px] text-slate-400 pb-2"></span>
-        </div>
-        <div id="rep-view-summary" class="space-y-4">
-          <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
-            <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
-              <span class="text-[11px] font-bold text-slate-400 uppercase">Total Omset</span>
-              <h3 id="rep-total-revenue" class="text-xl font-black font-mono text-emerald-600 mt-1">Rp 0</h3>
-            </div>
-            <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
-              <span class="text-[11px] font-bold text-slate-400 uppercase">Total Transaksi</span>
-              <h3 id="rep-total-orders" class="text-xl font-black font-mono text-slate-800 mt-1">0</h3>
-            </div>
-            <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
-              <span class="text-[11px] font-bold text-slate-400 uppercase">Rata-rata Order (AOV)</span>
-              <h3 id="rep-avg-order" class="text-xl font-black font-mono text-brand-600 mt-1">Rp 0</h3>
-            </div>
-            <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
-              <span class="text-[11px] font-bold text-slate-400 uppercase">Valuasi Dapur</span>
-              <h3 id="rep-inventory-val" class="text-xl font-black font-mono text-indigo-600 mt-1">Rp 0</h3>
-            </div>
-          </div>
-          <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
-            <h4 class="font-bold text-sm text-slate-800 mb-3">Omzet Berdasarkan Metode Pembayaran</h4>
-            <div id="rep-payment-breakdown" class="grid grid-cols-2 md:grid-cols-5 gap-2"></div>
-          </div>
-          <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
-            <div class="flex items-center justify-between mb-3">
-              <h4 class="font-bold text-sm text-slate-800">Riwayat Void / Pembatalan</h4>
-              <span class="text-[10px] text-slate-400">Termasuk void oleh kasir</span>
-            </div>
-            <div class="overflow-x-auto">
-              <table class="w-full text-left border-collapse text-xs">
-                <thead><tr class="bg-slate-100 text-slate-600 uppercase font-bold text-[10px] border-b"><th class="p-2">Transaksi</th><th class="p-2">Waktu</th><th class="p-2">Kasir</th><th class="p-2">Total</th><th class="p-2">Alasan</th></tr></thead>
-                <tbody id="rep-void-history-body" class="divide-y divide-slate-100"></tbody>
-              </table>
-            </div>
-          </div>
+          <div><label class="block text-[10px] font-bold text-slate-500 uppercase mb-1">Periode</label><select id="report-period-select" onchange="toggleCustomReportDates()" class="px-3 py-2 rounded-xl border border-slate-200 text-xs font-bold"><option value="today">Hari ini</option><option value="yesterday">Kemarin</option><option value="week">Minggu ini</option><option value="month" selected>Bulan ini</option><option value="custom">Pilih tanggal</option></select></div>
+          <div id="report-custom-dates" class="hidden flex gap-2"><div><label class="block text-[10px] font-bold text-slate-500 uppercase mb-1">Dari</label><input id="report-start-date" type="date" class="px-3 py-2 rounded-xl border border-slate-200 text-xs"></div><div><label class="block text-[10px] font-bold text-slate-500 uppercase mb-1">Sampai</label><input id="report-end-date" type="date" class="px-3 py-2 rounded-xl border border-slate-200 text-xs"></div></div>
+          <div><label class="block text-[10px] font-bold text-slate-500 uppercase mb-1">Kasir</label><select id="report-cashier-filter" class="px-3 py-2 rounded-xl border border-slate-200 text-xs font-bold"><option value="">Semua kasir</option></select></div>
+          <div><label class="block text-[10px] font-bold text-slate-500 uppercase mb-1">Channel</label><select id="report-channel-filter" class="px-3 py-2 rounded-xl border border-slate-200 text-xs font-bold"><option value="">Semua channel</option><option>Dine In</option><option>Takeaway</option><option>Gojek</option><option>Grab</option></select></div>
+          <button onclick="loadReportsFromSupabase()" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl">Terapkan Filter</button><span id="report-period-label" class="text-[10px] text-slate-400 pb-2"></span>
         </div>
 
-        <div id="rep-view-daily" class="space-y-4 hidden">
-          <div class="flex justify-between items-center">
-            <h4 class="font-bold text-sm text-slate-800">Rekapitulasi Penjualan Harian</h4>
-            <button onclick="exportHistoryCSV()" class="px-3 py-1.5 bg-emerald-600 text-white text-xs font-bold rounded-xl">Export CSV</button>
-          </div>
-          <div class="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
-            <table class="w-full text-left border-collapse text-xs">
-              <thead>
-                <tr class="bg-slate-100 text-slate-600 uppercase font-bold text-[10px] border-b">
-                  <th class="p-3">Tanggal</th><th class="p-3 text-center">Order</th><th class="p-3 text-right">Toko</th><th class="p-3 text-right">Gojek</th><th class="p-3 text-right">Grab</th><th class="p-3 text-right">Total</th>
-                </tr>
-              </thead>
-              <tbody id="daily-sales-table-body" class="divide-y divide-slate-100"></tbody>
-            </table>
-          </div>
+        <div id="rep-view-summary" class="space-y-4">
+          <div class="grid grid-cols-2 xl:grid-cols-4 gap-3"><div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm"><span class="text-[10px] font-bold text-slate-400 uppercase">Omzet Bersih</span><h3 id="rep-total-revenue" class="text-xl font-black font-mono text-emerald-600 mt-1">Rp 0</h3><p id="rep-revenue-change" class="text-[10px] mt-1 text-slate-400">— vs periode sebelumnya</p></div><div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm"><span class="text-[10px] font-bold text-slate-400 uppercase">Transaksi</span><h3 id="rep-total-orders" class="text-xl font-black font-mono text-slate-800 mt-1">0</h3><p id="rep-orders-change" class="text-[10px] mt-1 text-slate-400">— vs periode sebelumnya</p></div><div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm"><span class="text-[10px] font-bold text-slate-400 uppercase">Rata-rata Order</span><h3 id="rep-avg-order" class="text-xl font-black font-mono text-indigo-600 mt-1">Rp 0</h3><p class="text-[10px] mt-1 text-slate-400">AOV transaksi selesai</p></div><div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm"><span class="text-[10px] font-bold text-slate-400 uppercase">Total Void</span><h3 id="rep-total-void" class="text-xl font-black font-mono text-red-600 mt-1">Rp 0</h3><p id="rep-void-count" class="text-[10px] mt-1 text-slate-400">0 transaksi</p></div></div>
+          <div class="grid lg:grid-cols-5 gap-4"><div class="lg:col-span-3 bg-white p-4 rounded-2xl border border-slate-200 shadow-sm"><div class="flex justify-between items-center mb-2"><h4 class="font-bold text-sm">Omzet Penjualan</h4><span class="text-[10px] text-slate-400">per tanggal</span></div><div id="rep-daily-chart" class="flex items-end gap-1 h-44 border-b border-slate-200"></div></div><div class="lg:col-span-2 bg-white p-4 rounded-2xl border border-slate-200 shadow-sm"><h4 class="font-bold text-sm mb-3">Metode Pembayaran</h4><div id="rep-payment-breakdown" class="space-y-2"></div><div class="mt-3 pt-3 border-t text-right font-mono font-black text-emerald-600" id="rep-payment-total">Rp 0</div></div></div>
+          <div class="grid lg:grid-cols-2 gap-4"><div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm"><h4 class="font-bold text-sm mb-3">Channel Order</h4><div id="rep-channel-breakdown" class="space-y-2"></div></div><div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm"><h4 class="font-bold text-sm mb-3">Produk Terlaris</h4><div id="rep-top-products-summary" class="text-xs text-slate-500">Muat setelah laporan produk dibuka.</div></div></div>
         </div>
+
+        <div id="rep-view-products" class="space-y-4 hidden"><div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-4"><div class="flex flex-wrap justify-between items-center gap-2 mb-3"><div><h4 class="font-bold text-sm">Penjualan Produk</h4><p class="text-[10px] text-slate-400">Terlaris berdasarkan data order_items dan snapshot transaksi</p></div><div class="flex gap-2"><select id="report-product-sort" onchange="loadReportProducts()" class="px-3 py-1.5 border rounded-xl text-xs"><option value="qty">Qty terjual</option><option value="revenue">Omzet</option></select><button onclick="exportReportProductsCSV()" class="px-3 py-1.5 bg-emerald-600 text-white text-xs font-bold rounded-xl">Export CSV</button></div></div><div class="overflow-x-auto"><table class="w-full text-left border-collapse text-xs"><thead><tr class="bg-slate-100 text-slate-600 uppercase font-bold text-[10px]"><th class="p-2">#</th><th class="p-2">Menu</th><th class="p-2 text-right">Qty</th><th class="p-2 text-right">Omzet</th><th class="p-2 text-right">Rata-rata</th></tr></thead><tbody id="rep-products-body" class="divide-y divide-slate-100"></tbody></table></div></div></div>
+        <div id="rep-view-shifts" class="space-y-4 hidden"><div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-4"><div class="flex justify-between items-center mb-3"><h4 class="font-bold text-sm">Kas & Shift</h4><span class="text-[10px] text-slate-400">Ringkasan shift kasir</span></div><div id="rep-shifts-body" class="overflow-x-auto"></div></div></div>
+        <div id="rep-view-inventory" class="space-y-4 hidden"><div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-4"><div class="flex justify-between items-center mb-3"><h4 class="font-bold text-sm">Stok & Bahan Baku</h4><span id="rep-inventory-val" class="font-mono font-black text-indigo-600">Rp 0</span></div><div id="rep-inventory-body" class="overflow-x-auto"></div></div></div>
+        <div id="rep-view-voids" class="space-y-4 hidden"><div class="bg-amber-50 border border-amber-200 p-3 rounded-xl text-xs text-amber-800">Tab ini hanya menampilkan transaksi void dan audit untuk admin/owner.</div><div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-4"><div class="flex justify-between items-center mb-3"><h4 class="font-bold text-sm">Void & Audit</h4><button onclick="exportReportVoidsCSV()" class="px-3 py-1.5 bg-emerald-600 text-white text-xs font-bold rounded-xl">Export CSV</button></div><div class="overflow-x-auto"><table class="w-full text-left border-collapse text-xs"><thead><tr class="bg-slate-100 text-slate-600 uppercase font-bold text-[10px]"><th class="p-2">Transaksi</th><th class="p-2">Tanggal</th><th class="p-2">Kasir</th><th class="p-2">Nilai</th><th class="p-2">Alasan</th><th class="p-2">Waktu void</th></tr></thead><tbody id="rep-void-history-body" class="divide-y divide-slate-100"></tbody></table></div></div></div>
+        <div id="rep-view-transactions" class="space-y-4 hidden"><div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-4"><div class="flex flex-wrap justify-between items-center gap-2 mb-3"><div><h4 class="font-bold text-sm">Riwayat Transaksi</h4><p class="text-[10px] text-slate-400">Sesuai filter periode dan channel aktif</p></div><button onclick="exportHistoryCSV()" class="px-3 py-1.5 bg-emerald-600 text-white text-xs font-bold rounded-xl">Export CSV</button></div><div class="overflow-x-auto"><table class="w-full text-left border-collapse text-xs"><thead><tr class="bg-slate-100 text-slate-600 uppercase font-bold text-[10px]"><th class="p-2">Transaksi</th><th class="p-2">Tanggal</th><th class="p-2">Kasir</th><th class="p-2">Channel</th><th class="p-2">Pembayaran</th><th class="p-2 text-right">Total</th><th class="p-2">Status</th></tr></thead><tbody id="rep-transactions-body" class="divide-y divide-slate-100"></tbody></table></div></div></div>
       </div>
     </div>
   </div>
@@ -1143,6 +1088,12 @@
     let ACTIVE_BILLS = loadLocal('nyonya_active_bills', {});
     // Riwayat transaksi tidak lagi disimpan di localStorage (kuota penuh bisa merusak checkout).
     let TRANSACTION_HISTORY = [];
+    let REPORT_DASHBOARD = {};
+    let REPORT_RANGE = null;
+    let REPORT_ROWS = [];
+    let REPORT_MATERIALS = [];
+    let REPORT_MOVEMENTS = [];
+    let REPORT_SHIFTS = [];
     try { localStorage.removeItem('nyonya_tx_history'); } catch (e) { /* abaikan */ }
     let printerConfig = loadLocal('nyonya_printer_config', {
       name: '',
@@ -2138,129 +2089,87 @@
     }
 
     function localDateString(date) {
-      const y = date.getFullYear();
-      const m = String(date.getMonth() + 1).padStart(2, '0');
-      const d = String(date.getDate()).padStart(2, '0');
+      const y = date.getFullYear(); const m = String(date.getMonth() + 1).padStart(2, '0'); const d = String(date.getDate()).padStart(2, '0');
       return `${y}-${m}-${d}`;
     }
     function getReportDateRange() {
-      const now = new Date();
-      const today = localDateString(now);
-      const period = document.getElementById('report-period-select')?.value || 'today';
-      if (period === 'custom') {
-        const from = document.getElementById('report-start-date')?.value || today;
-        const to = document.getElementById('report-end-date')?.value || today;
-        return { from: from <= to ? from : to, to: from <= to ? to : from };
-      }
-      if (period === 'yesterday') {
-        const yesterday = new Date(now);
-        yesterday.setDate(yesterday.getDate() - 1);
-        const value = localDateString(yesterday);
-        return { from: value, to: value };
-      }
-      if (period === 'week') {
-        const start = new Date(now);
-        const day = start.getDay() || 7;
-        start.setDate(start.getDate() - day + 1);
-        return { from: localDateString(start), to: today };
-      }
-      if (period === 'month') {
-        return { from: `${today.slice(0, 7)}-01`, to: today };
-      }
+      const now = new Date(); const today = localDateString(now); const period = document.getElementById('report-period-select')?.value || 'month';
+      if (period === 'custom') { const from = document.getElementById('report-start-date')?.value || today; const to = document.getElementById('report-end-date')?.value || today; return { from: from <= to ? from : to, to: from <= to ? to : from }; }
+      if (period === 'yesterday') { const d = new Date(now); d.setDate(d.getDate() - 1); const value = localDateString(d); return { from: value, to: value }; }
+      if (period === 'week') { const d = new Date(now); const day = d.getDay() || 7; d.setDate(d.getDate() - day + 1); return { from: localDateString(d), to: today }; }
+      if (period === 'month') return { from: `${today.slice(0, 7)}-01`, to: today };
       return { from: today, to: today };
     }
-    function toggleReportCustomDates() {
+    function getReportCompareRange(range) {
+      const days = Math.max(1, Math.round((new Date(`${range.to}T00:00:00`) - new Date(`${range.from}T00:00:00`)) / 86400000) + 1);
+      const to = new Date(`${range.from}T00:00:00`); to.setDate(to.getDate() - 1); const from = new Date(to); from.setDate(from.getDate() - days + 1);
+      return { from: localDateString(from), to: localDateString(to) };
+    }
+    function toggleCustomReportDates() {
       const custom = document.getElementById('report-period-select')?.value === 'custom';
       document.getElementById('report-custom-dates')?.classList.toggle('hidden', !custom);
     }
+    function reportMoney(value) { return `Rp ${Number(value || 0).toLocaleString('id-ID')}`; }
+    function reportPct(current, previous) { if (!Number(previous)) return Number(current) ? 'baru' : '0%'; return `${(((Number(current) - Number(previous)) / Number(previous)) * 100).toFixed(1)}%`; }
+    function setReportChange(id, value, previous) { const el = document.getElementById(id); if (!el) return; const pct = reportPct(value, previous); el.textContent = `${pct} vs periode sebelumnya`; el.className = `text-[10px] mt-1 ${Number(value) >= Number(previous) ? 'text-emerald-600' : 'text-red-600'}`; }
+
     async function loadReportsFromSupabase() {
       if (!supabaseClient) throw new Error('Supabase belum tersambung');
-      const range = getReportDateRange();
-      const periodLabel = document.getElementById('report-period-label');
-      if (periodLabel) periodLabel.textContent = `Data ${range.from} sampai ${range.to}`;
-      const { data, error } = await supabaseClient
-        .from('transactions')
-        .select('trx_id,date,time,grand_total,order_type,payment_method,status,cashier,voided_at,void_reason')
-        .gte('date', range.from)
-        .lte('date', range.to)
-        .order('date', { ascending: false })
-        .limit(5000);
+      if (currentUserRole !== 'admin') throw new Error('Hanya admin yang dapat melihat laporan lengkap');
+      const range = getReportDateRange(); const compare = getReportCompareRange(range);
+      const cashier = document.getElementById('report-cashier-filter')?.value || null;
+      const orderType = document.getElementById('report-channel-filter')?.value || null;
+      const { data, error } = await supabaseClient.rpc('get_report_dashboard', { p_from: range.from, p_to: range.to, p_compare_from: compare.from, p_compare_to: compare.to, p_cashier: cashier, p_order_type: orderType });
       if (error) throw error;
-      const rows = (data || []).filter(row => row.status !== 'voided');
-      const voidRows = (data || []).filter(row => row.status === 'voided');
-      const totalRev = rows.reduce((sum, row) => sum + Number(row.grand_total || 0), 0);
-      const paymentTotals = {};
-      rows.forEach(row => {
-        const method = row.payment_method || 'Tidak diketahui';
-        paymentTotals[method] = (paymentTotals[method] || 0) + Number(row.grand_total || 0);
-      });
-      const paymentBox = document.getElementById('rep-payment-breakdown');
-      if (paymentBox) paymentBox.innerHTML = Object.entries(paymentTotals).sort((a,b) => b[1] - a[1]).map(([method, amount]) => `<div class="rounded-xl bg-slate-50 border border-slate-200 p-3"><div class="text-[10px] font-bold text-slate-500">${escapeHtml(method)}</div><div class="font-mono font-black text-sm text-slate-800">Rp ${amount.toLocaleString('id-ID')}</div></div>`).join('') || '<div class="text-xs text-slate-400">Belum ada data pembayaran.</div>';
-      document.getElementById('rep-total-revenue').textContent = `Rp ${totalRev.toLocaleString('id-ID')}`;
-      document.getElementById('rep-total-orders').textContent = rows.length.toLocaleString('id-ID');
-      document.getElementById('rep-avg-order').textContent = `Rp ${Math.round(rows.length ? totalRev / rows.length : 0).toLocaleString('id-ID')}`;
-      document.getElementById('rep-inventory-val').textContent = `Rp ${RAW_MATERIALS.reduce((a,b)=>a+b.stock*b.cost,0).toLocaleString('id-ID')}`;
-      const voidBody = document.getElementById('rep-void-history-body');
-      if (voidBody) {
-        voidBody.innerHTML = voidRows.length
-          ? voidRows.map(row => `<tr><td class="p-2 font-mono font-bold">${escapeHtml(row.trx_id)}</td><td class="p-2">${escapeHtml(row.voided_at || `${row.date || ''} ${row.time || ''}`)}</td><td class="p-2">${escapeHtml(row.cashier || '-')}</td><td class="p-2 font-mono">Rp ${Number(row.grand_total || 0).toLocaleString('id-ID')}</td><td class="p-2">${escapeHtml(row.void_reason || '-')}</td></tr>`).join('')
-          : '<tr><td colspan="5" class="p-4 text-center text-slate-400">Belum ada transaksi void.</td></tr>';
-      }
-      const grouped = {};
-      rows.forEach(row => {
-        const date = row.date || 'Tanpa tanggal';
-        if (!grouped[date]) grouped[date] = { count: 0, toko: 0, gojek: 0, grab: 0, total: 0 };
-        const amount = Number(row.grand_total || 0);
-        grouped[date].count += 1;
-        grouped[date].total += amount;
-        if (row.order_type === 'Gojek') grouped[date].gojek += amount;
-        else if (row.order_type === 'Grab') grouped[date].grab += amount;
-        else grouped[date].toko += amount;
-      });
-      const dailyTbody = document.getElementById('daily-sales-table-body');
-      dailyTbody.innerHTML = Object.keys(grouped).sort().reverse().map(date => {
-        const r = grouped[date];
-        return `<tr class="hover:bg-slate-50"><td class="p-3 font-bold">${escapeHtml(date)}</td><td class="p-3 text-center font-mono">${r.count}</td><td class="p-3 text-right font-mono">Rp ${r.toko.toLocaleString('id-ID')}</td><td class="p-3 text-right font-mono text-sky-600">Rp ${r.gojek.toLocaleString('id-ID')}</td><td class="p-3 text-right font-mono text-orange-600">Rp ${r.grab.toLocaleString('id-ID')}</td><td class="p-3 text-right font-mono font-bold text-emerald-600">Rp ${r.total.toLocaleString('id-ID')}</td></tr>`;
-      }).join('');
+      REPORT_DASHBOARD = data || {}; REPORT_RANGE = range;
+      document.getElementById('report-period-label').textContent = `${range.from} — ${range.to} · dibandingkan ${compare.from} — ${compare.to}`;
+      document.getElementById('rep-last-loaded').textContent = `Diperbarui ${new Date().toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit'})}`;
+      renderReportDashboard();
+      await loadReportRows(range, cashier, orderType);
+      await loadReportOperationalData(range);
+      showToast('Dashboard laporan dimuat dari Supabase', 'success');
     }
-
-    async function openReportsModal() {
-      document.getElementById('reports-modal').classList.remove('hidden');
-      try {
-        await loadReportsFromSupabase();
-        showToast('Laporan dimuat langsung dari Supabase', 'success');
-      } catch (error) {
-        console.error('Gagal memuat laporan cloud:', error);
-        showToast('Laporan cloud gagal dimuat: ' + error.message, 'error');
-      }
+    async function loadReportRows(range, cashier, orderType) {
+      let query = supabaseClient.from('transactions').select('trx_id,date,time,table_name,order_type,cashier,subtotal,tax,grand_total,payment_method,items,status,voided_at,voided_by,void_reason').gte('date', range.from).lte('date', range.to).order('created_at', { ascending: false }).limit(5000);
+      if (cashier) query = query.eq('cashier', cashier); if (orderType) query = query.eq('order_type', orderType);
+      const { data, error } = await query; if (error) throw error; REPORT_ROWS = data || [];
+      const cashiers = [...new Set(REPORT_ROWS.map(row => row.cashier).filter(Boolean))]; const select = document.getElementById('report-cashier-filter');
+      if (select && select.options.length <= 1) cashiers.forEach(name => { const opt = document.createElement('option'); opt.value = name; opt.textContent = name; select.appendChild(opt); });
+      renderReportProducts(); renderReportVoids(); renderReportTransactions();
     }
+    async function loadReportOperationalData(range) {
+      const [{ data: materials, error: materialError }, { data: movements, error: movementError }, { data: shifts, error: shiftError }] = await Promise.all([
+        supabaseClient.from('raw_materials').select('id,name,stock,unit,cost').order('name').limit(500),
+        supabaseClient.from('inventory_movements').select('raw_material_id,quantity,movement_type,created_at,notes').gte('created_at', `${range.from}T00:00:00`).lte('created_at', `${range.to}T23:59:59`).order('created_at', { ascending: false }).limit(5000),
+        supabaseClient.from('cash_sessions').select('id,user_id,opened_at,closed_at,opening_cash,closing_cash,expected_cash,difference,status').order('opened_at', { ascending: false }).limit(500)
+      ]);
+      if (materialError) throw materialError; if (movementError) throw movementError; if (shiftError) throw shiftError;
+      REPORT_MATERIALS = materials || []; REPORT_MOVEMENTS = movements || []; REPORT_SHIFTS = shifts || [];
+      renderReportInventory(); renderReportShifts();
+    }
+    function renderReportDashboard() {
+      const c = REPORT_DASHBOARD.current || {}, p = REPORT_DASHBOARD.previous || {}, v = REPORT_DASHBOARD.void || {};
+      document.getElementById('rep-total-revenue').textContent = reportMoney(c.revenue); document.getElementById('rep-total-orders').textContent = Number(c.orders || 0).toLocaleString('id-ID'); document.getElementById('rep-avg-order').textContent = reportMoney(c.aov); document.getElementById('rep-total-void').textContent = reportMoney(v.value); document.getElementById('rep-void-count').textContent = `${Number(v.count || 0).toLocaleString('id-ID')} transaksi void`;
+      setReportChange('rep-revenue-change', c.revenue, p.revenue); setReportChange('rep-orders-change', c.orders, p.orders);
+      const payments = REPORT_DASHBOARD.payments || []; document.getElementById('rep-payment-breakdown').innerHTML = payments.length ? payments.map(row => `<div class="flex justify-between items-center text-xs"><span>${escapeHtml(row.method || 'Lainnya')} <small class="text-slate-400">(${row.orders})</small></span><strong class="font-mono">${reportMoney(row.revenue)}</strong></div>`).join('') : '<div class="text-xs text-slate-400">Belum ada data pembayaran.</div>';
+      document.getElementById('rep-payment-total').textContent = reportMoney(payments.reduce((sum, row) => sum + Number(row.revenue || 0), 0));
+      const channels = REPORT_DASHBOARD.channels || []; document.getElementById('rep-channel-breakdown').innerHTML = channels.length ? channels.map(row => `<div class="flex justify-between items-center text-xs"><span>${escapeHtml(row.channel || 'Lainnya')} <small class="text-slate-400">(${row.orders})</small></span><strong class="font-mono text-emerald-600">${reportMoney(row.revenue)}</strong></div>`).join('') : '<div class="text-xs text-slate-400">Belum ada data channel.</div>';
+      const daily = REPORT_DASHBOARD.daily || []; const max = Math.max(...daily.map(row => Number(row.revenue || 0)), 1); document.getElementById('rep-daily-chart').innerHTML = daily.length ? daily.map(row => `<div class="flex-1 h-full flex flex-col justify-end items-center gap-1"><div title="${row.sale_date}: ${reportMoney(row.revenue)}" class="w-full max-w-[34px] bg-emerald-500 rounded-t-md" style="height:${Math.max(5, Number(row.revenue || 0) / max * 100)}%"></div><span class="text-[9px] text-slate-400">${String(row.sale_date).slice(5)}</span></div>`).join('') : '<div class="w-full text-center self-center text-xs text-slate-400">Belum ada penjualan pada periode ini.</div>';
+    }
+    function normalizedReportItems(rows) { const items = []; rows.filter(row => row.status === 'completed').forEach(row => (Array.isArray(row.items) ? row.items : []).forEach(item => { const qty = Number(item.qty || item.quantity || 0); const unit = Number(item.price || item.unit_price || 0); if (qty > 0) items.push({ name: item.name || item.product_name || item.id || 'Produk', qty, revenue: Number(item.lineTotal || item.line_total || unit * qty), orderType: row.order_type }); })); return items; }
+    function renderReportProducts() { const map = {}; normalizedReportItems(REPORT_ROWS).forEach(item => { const key = item.name; if (!map[key]) map[key] = { name: key, qty: 0, revenue: 0 }; map[key].qty += item.qty; map[key].revenue += item.revenue; }); const sort = document.getElementById('report-product-sort')?.value || 'qty'; const rows = Object.values(map).sort((a,b) => sort === 'revenue' ? b.revenue - a.revenue : b.qty - a.qty); document.getElementById('rep-products-body').innerHTML = rows.length ? rows.map((row,i) => `<tr><td class="p-2 font-black text-emerald-600">${i+1}</td><td class="p-2 font-bold">${escapeHtml(row.name)}</td><td class="p-2 text-right font-mono">${row.qty.toLocaleString('id-ID')}</td><td class="p-2 text-right font-mono">${reportMoney(row.revenue)}</td><td class="p-2 text-right font-mono">${reportMoney(row.qty ? row.revenue / row.qty : 0)}</td></tr>`).join('') : '<tr><td colspan="5" class="p-4 text-center text-slate-400">Belum ada data produk.</td></tr>'; const top = rows.slice(0,5); document.getElementById('rep-top-products-summary').innerHTML = top.length ? top.map((row,i) => `<div class="flex justify-between py-1"><span><b>${i+1}.</b> ${escapeHtml(row.name)}</span><b>${row.qty} item</b></div>`).join('') : 'Belum ada data produk.'; }
+    function renderReportVoids() { const rows = REPORT_ROWS.filter(row => row.status === 'voided'); document.getElementById('rep-void-history-body').innerHTML = rows.length ? rows.map(row => `<tr><td class="p-2 font-mono font-bold">${escapeHtml(row.trx_id)}</td><td class="p-2">${escapeHtml(row.date || '')}</td><td class="p-2">${escapeHtml(row.cashier || '-')}</td><td class="p-2 font-mono">${reportMoney(row.grand_total)}</td><td class="p-2">${escapeHtml(row.void_reason || '-')}</td><td class="p-2">${escapeHtml(row.voided_at || '-')}</td></tr>`).join('') : '<tr><td colspan="6" class="p-4 text-center text-slate-400">Belum ada transaksi void.</td></tr>'; }
+    function renderReportTransactions() { document.getElementById('rep-transactions-body').innerHTML = REPORT_ROWS.length ? REPORT_ROWS.map(row => `<tr><td class="p-2 font-mono font-bold">${escapeHtml(row.trx_id)}</td><td class="p-2">${escapeHtml(row.date || '')} ${escapeHtml(row.time || '')}</td><td class="p-2">${escapeHtml(row.cashier || '-')}</td><td class="p-2">${escapeHtml(row.order_type || '-')}</td><td class="p-2">${escapeHtml(row.payment_method || '-')}</td><td class="p-2 text-right font-mono">${reportMoney(row.grand_total)}</td><td class="p-2"><span class="px-2 py-1 rounded-full text-[10px] font-bold ${row.status === 'voided' ? 'bg-red-100 text-red-700' : 'bg-emerald-100 text-emerald-700'}">${row.status === 'voided' ? 'Void' : 'Selesai'}</span></td></tr>`).join('') : '<tr><td colspan="7" class="p-4 text-center text-slate-400">Belum ada transaksi.</td></tr>'; }
+    function renderReportShifts() { document.getElementById('rep-shifts-body').innerHTML = `<table class="w-full text-left text-xs"><thead><tr class="bg-slate-100 uppercase text-[10px]"><th class="p-2">Status</th><th class="p-2">Buka</th><th class="p-2">Tutup</th><th class="p-2 text-right">Kas awal</th><th class="p-2 text-right">Selisih</th></tr></thead><tbody>${REPORT_SHIFTS.length ? REPORT_SHIFTS.map(row => `<tr class="border-t"><td class="p-2">${row.status === 'open' ? '<span class="text-emerald-600 font-bold">Aktif</span>' : '<span class="text-slate-500">Ditutup</span>'}</td><td class="p-2">${new Date(row.opened_at).toLocaleString('id-ID')}</td><td class="p-2">${row.closed_at ? new Date(row.closed_at).toLocaleString('id-ID') : '-'}</td><td class="p-2 text-right font-mono">${reportMoney(row.opening_cash)}</td><td class="p-2 text-right font-mono">${row.difference == null ? '-' : reportMoney(row.difference)}</td></tr>`).join('') : '<tr><td colspan="5" class="p-4 text-center text-slate-400">Belum ada shift.</td></tr>'}</tbody></table>`; }
+    function renderReportInventory() { const total = REPORT_MATERIALS.reduce((sum,row) => sum + Number(row.stock || 0) * Number(row.cost || 0), 0); document.getElementById('rep-inventory-val').textContent = reportMoney(total); const byType = {}; REPORT_MOVEMENTS.forEach(row => byType[row.movement_type] = (byType[row.movement_type] || 0) + Number(row.quantity || 0)); document.getElementById('rep-inventory-body').innerHTML = `<table class="w-full text-left text-xs"><thead><tr class="bg-slate-100 uppercase text-[10px]"><th class="p-2">Bahan</th><th class="p-2 text-right">Stok</th><th class="p-2 text-right">Nilai</th><th class="p-2">Status</th></tr></thead><tbody>${REPORT_MATERIALS.map(row => `<tr class="border-t"><td class="p-2 font-bold">${escapeHtml(row.name)}</td><td class="p-2 text-right font-mono">${Number(row.stock || 0).toLocaleString('id-ID')} ${escapeHtml(row.unit || '')}</td><td class="p-2 text-right font-mono">${reportMoney(Number(row.stock || 0) * Number(row.cost || 0))}</td><td class="p-2">${Number(row.stock || 0) <= 10 ? '<span class="text-orange-600 font-bold">Restock</span>' : '<span class="text-emerald-600 font-bold">Aman</span>'}</td></tr>`).join('')}</tbody></table><div class="grid grid-cols-2 md:grid-cols-4 gap-2 mt-3 text-[10px]">${Object.entries(byType).map(([type,value]) => `<div class="bg-slate-50 rounded-xl p-2"><b>${escapeHtml(type)}</b><br>${Number(value).toLocaleString('id-ID')}</div>`).join('')}</div>`; }
+    async function openReportsModal() { document.getElementById('reports-modal').classList.remove('hidden'); try { await loadReportsFromSupabase(); } catch (error) { console.error(error); showToast('Laporan gagal dimuat: ' + error.message, 'error'); } }
     function closeReportsModal() { document.getElementById('reports-modal').classList.add('hidden'); }
-    function switchReportTab(t) {
-      document.getElementById('rep-view-summary').classList.toggle('hidden', t !== 'summary');
-      document.getElementById('rep-view-daily').classList.toggle('hidden', t !== 'daily');
-      document.getElementById('rep-tab-summary').className = t === 'summary' ? "px-4 py-2 text-xs font-bold rounded-t-xl bg-white text-emerald-600 border-t border-x border-slate-200" : "px-4 py-2 text-xs font-bold rounded-t-xl text-slate-600 hover:bg-slate-200";
-      document.getElementById('rep-tab-daily').className = t === 'daily' ? "px-4 py-2 text-xs font-bold rounded-t-xl bg-white text-emerald-600 border-t border-x border-slate-200" : "px-4 py-2 text-xs font-bold rounded-t-xl text-slate-600 hover:bg-slate-200";
-    }
-    async function exportHistoryCSV() {
-      try { await loadTransactionHistoryFromSupabase(); } catch (error) { return showToast('Gagal memuat riwayat cloud: ' + error.message, 'error'); }
-      const headers = ['Transaksi','Tanggal','Waktu','Order Type','Metode Pembayaran','Subtotal','Pajak','Service Charge','Diskon','Diskon Member','Total Bayar','Uang Diterima','Kembalian','Status','Alasan Void','Kasir'];
-      const esc = value => `"${String(value ?? '').replace(/"/g, '""')}"`;
-      const lines = [headers.map(esc).join(',')];
-      TRANSACTION_HISTORY.forEach(tx => lines.push([
-        tx.id, tx.date, tx.time, tx.orderType, tx.paymentMethod, tx.subtotal, tx.tax,
-        tx.serviceCharge || 0, tx.discount || 0, tx.memberDiscount || 0,
-        tx.grandTotal, tx.cashGiven || tx.grandTotal, tx.change || 0,
-        tx.status || 'completed', tx.voidReason || '', tx.cashier || ''
-      ].map(esc).join(',')));
-      const blob = new Blob([ '\ufeff' + lines.join('\n') ], { type: 'text/csv;charset=utf-8;' });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `laporan-penjualan-${new Date().toISOString().slice(0,10)}.csv`;
-      link.click();
-      URL.revokeObjectURL(url);
-      showToast('Export CSV berhasil', 'success');
-    }
+    function switchReportTab(tab) { ['summary','products','shifts','inventory','voids','transactions'].forEach(name => { document.getElementById(`rep-view-${name}`).classList.toggle('hidden', name !== tab); const button = document.getElementById(`rep-tab-${name}`); if (button) button.className = name === tab ? 'rep-tab-active px-4 py-2 text-xs font-bold rounded-t-xl whitespace-nowrap' : 'rep-tab px-4 py-2 text-xs font-bold rounded-t-xl whitespace-nowrap'; }); if (tab === 'products') renderReportProducts(); }
+    function csvDownload(filename, rows) { const esc = value => `"${String(value ?? '').replace(/"/g, '""')}"`; const blob = new Blob(['\ufeff' + rows.map(row => row.map(esc).join(',')).join('\n')], { type: 'text/csv;charset=utf-8;' }); const url = URL.createObjectURL(blob); const link = document.createElement('a'); link.href = url; link.download = filename; link.click(); URL.revokeObjectURL(url); }
+    function exportReportProductsCSV() { const map = {}; normalizedReportItems(REPORT_ROWS).forEach(item => { if (!map[item.name]) map[item.name] = { name: item.name, qty: 0, revenue: 0 }; map[item.name].qty += item.qty; map[item.name].revenue += item.revenue; }); csvDownload(`laporan-produk-${localDateString(new Date())}.csv`, [['Ranking','Menu','Qty Terjual','Omzet','Harga Rata-rata'], ...Object.values(map).sort((a,b) => b.qty-a.qty).map((row,i) => [i+1,row.name,row.qty,row.revenue,row.qty ? row.revenue/row.qty : 0])]); showToast('Export produk berhasil', 'success'); }
+    function exportReportVoidsCSV() { csvDownload(`laporan-void-${localDateString(new Date())}.csv`, [['Transaksi','Tanggal','Kasir','Nilai','Alasan','Waktu Void'], ...REPORT_ROWS.filter(row => row.status === 'voided').map(row => [row.trx_id,row.date,row.cashier,row.grand_total,row.void_reason,row.voided_at])]); showToast('Export void berhasil', 'success'); }
+    async function exportHistoryCSV() { if (!REPORT_ROWS.length) { try { await loadReportsFromSupabase(); } catch (error) { return showToast('Gagal memuat laporan: ' + error.message, 'error'); } } csvDownload(`laporan-transaksi-${localDateString(new Date())}.csv`, [['Transaksi','Tanggal','Waktu','Order Type','Metode Pembayaran','Subtotal','Pajak','Total Bayar','Status','Alasan Void','Kasir'], ...REPORT_ROWS.map(row => [row.trx_id,row.date,row.time,row.order_type,row.payment_method,row.subtotal,row.tax,row.grand_total,row.status,row.void_reason,row.cashier])]); showToast('Export transaksi berhasil', 'success'); }
+
     async function loadCurrentCashSession() {
       if (!supabaseClient || !currentAuthSession) return;
       const { data, error } = await supabaseClient.from('cash_sessions').select('id,status,opening_cash,opened_at,closed_at,closing_cash,expected_cash,difference').eq('user_id', currentAuthSession.user.id).eq('status', 'open').order('opened_at', { ascending: false }).limit(1).maybeSingle();
