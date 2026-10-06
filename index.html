@@ -774,10 +774,10 @@
 
   <!-- MODAL: REPORTS & ANALYTICS -->
   <div id="reports-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
-    <div class="bg-white w-full max-w-7xl h-[92vh] rounded-2xl shadow-2xl flex flex-col overflow-hidden">
+    <div class="bg-slate-50 w-full max-w-7xl h-[94vh] rounded-2xl shadow-2xl flex flex-col overflow-hidden">
       <div class="bg-slate-900 text-white px-5 py-3.5 flex justify-between items-center shrink-0">
-        <div class="flex items-center gap-2"><i class="fa-solid fa-chart-line text-emerald-400 text-lg"></i><div><h3 class="font-bold text-sm">Dashboard Laporan & Analitik Restoran</h3><p class="text-[11px] text-slate-400">Data bersih dari transaksi selesai · khusus admin</p></div></div>
-        <div class="flex items-center gap-3"><span id="rep-last-loaded" class="hidden sm:block text-[10px] text-slate-400"></span><button onclick="closeReportsModal()" class="w-8 h-8 rounded-full bg-slate-800 hover:bg-slate-700 flex items-center justify-center text-slate-300 transition"><i class="fa-solid fa-xmark"></i></button></div>
+        <div class="flex items-center gap-3"><i class="fa-solid fa-chart-column text-emerald-400 text-xl"></i><div><h3 class="font-black text-base md:text-lg">Dashboard Laporan & Analitik Restoran</h3><p class="text-[11px] text-slate-400">Pantau performa penjualan, transaksi, stok, dan operasional restoran</p></div></div>
+        <div class="flex items-center gap-2"><span id="rep-last-loaded" class="hidden sm:block text-[10px] text-slate-400"></span><button onclick="exportHistoryCSV()" class="hidden md:inline-flex px-3 py-2 bg-white text-slate-800 rounded-xl text-xs font-bold items-center gap-1.5"><i class="fa-solid fa-download"></i> Export Laporan</button><button onclick="closeReportsModal()" class="w-8 h-8 rounded-full bg-slate-800 hover:bg-slate-700 flex items-center justify-center text-slate-300 transition"><i class="fa-solid fa-xmark"></i></button></div>
       </div>
       <div class="flex border-b border-slate-200 bg-slate-100 px-4 pt-3 gap-1 overflow-x-auto shrink-0">
         <button onclick="switchReportTab('summary')" id="rep-tab-summary" class="rep-tab-active px-4 py-2 text-xs font-bold rounded-t-xl whitespace-nowrap">📊 Ringkasan</button>
@@ -1091,6 +1091,7 @@
     let REPORT_DASHBOARD = {};
     let REPORT_RANGE = null;
     let REPORT_ROWS = [];
+    let REPORT_ORDER_ITEMS = [];
     let REPORT_MATERIALS = [];
     let REPORT_MOVEMENTS = [];
     let REPORT_SHIFTS = [];
@@ -2130,9 +2131,21 @@
       showToast('Dashboard laporan dimuat dari Supabase', 'success');
     }
     async function loadReportRows(range, cashier, orderType) {
-      let query = supabaseClient.from('transactions').select('trx_id,date,time,table_name,order_type,cashier,subtotal,tax,grand_total,payment_method,items,status,voided_at,voided_by,void_reason').gte('date', range.from).lte('date', range.to).order('created_at', { ascending: false }).limit(5000);
+      let query = supabaseClient.from('transactions').select('id,trx_id,date,time,table_name,order_type,cashier,subtotal,tax,grand_total,payment_method,items,status,voided_at,voided_by,void_reason').gte('date', range.from).lte('date', range.to).order('created_at', { ascending: false }).limit(5000);
       if (cashier) query = query.eq('cashier', cashier); if (orderType) query = query.eq('order_type', orderType);
       const { data, error } = await query; if (error) throw error; REPORT_ROWS = data || [];
+      const transactionIds = REPORT_ROWS.map(row => row.id).filter(Boolean);
+      if (transactionIds.length) {
+        const { data: orderItems, error: orderItemsError } = await supabaseClient
+          .from('order_items')
+          .select('transaction_id,product_id,product_name,unit_price,quantity,line_total')
+          .in('transaction_id', transactionIds)
+          .limit(10000);
+        if (orderItemsError) throw orderItemsError;
+        REPORT_ORDER_ITEMS = orderItems || [];
+      } else {
+        REPORT_ORDER_ITEMS = [];
+      }
       const cashiers = [...new Set(REPORT_ROWS.map(row => row.cashier).filter(Boolean))]; const select = document.getElementById('report-cashier-filter');
       if (select && select.options.length <= 1) cashiers.forEach(name => { const opt = document.createElement('option'); opt.value = name; opt.textContent = name; select.appendChild(opt); });
       renderReportProducts(); renderReportVoids(); renderReportTransactions();
@@ -2156,8 +2169,23 @@
       const channels = REPORT_DASHBOARD.channels || []; document.getElementById('rep-channel-breakdown').innerHTML = channels.length ? channels.map(row => `<div class="flex justify-between items-center text-xs"><span>${escapeHtml(row.channel || 'Lainnya')} <small class="text-slate-400">(${row.orders})</small></span><strong class="font-mono text-emerald-600">${reportMoney(row.revenue)}</strong></div>`).join('') : '<div class="text-xs text-slate-400">Belum ada data channel.</div>';
       const daily = REPORT_DASHBOARD.daily || []; const max = Math.max(...daily.map(row => Number(row.revenue || 0)), 1); document.getElementById('rep-daily-chart').innerHTML = daily.length ? daily.map(row => `<div class="flex-1 h-full flex flex-col justify-end items-center gap-1"><div title="${row.sale_date}: ${reportMoney(row.revenue)}" class="w-full max-w-[34px] bg-emerald-500 rounded-t-md" style="height:${Math.max(5, Number(row.revenue || 0) / max * 100)}%"></div><span class="text-[9px] text-slate-400">${String(row.sale_date).slice(5)}</span></div>`).join('') : '<div class="w-full text-center self-center text-xs text-slate-400">Belum ada penjualan pada periode ini.</div>';
     }
-    function normalizedReportItems(rows) { const items = []; rows.filter(row => row.status === 'completed').forEach(row => (Array.isArray(row.items) ? row.items : []).forEach(item => { const qty = Number(item.qty || item.quantity || 0); const unit = Number(item.price || item.unit_price || 0); if (qty > 0) items.push({ name: item.name || item.product_name || item.id || 'Produk', qty, revenue: Number(item.lineTotal || item.line_total || unit * qty), orderType: row.order_type }); })); return items; }
+    function normalizedReportItems(rows) {
+      const completedIds = new Set(rows.filter(row => row.status === 'completed').map(row => row.id));
+      const items = REPORT_ORDER_ITEMS.filter(item => completedIds.has(item.transaction_id)).map(item => ({
+        name: item.product_name || item.product_id || 'Produk',
+        qty: Number(item.quantity || 0),
+        revenue: Number(item.line_total || Number(item.unit_price || 0) * Number(item.quantity || 0)),
+        orderType: rows.find(row => row.id === item.transaction_id)?.order_type || ''
+      }));
+      // Backward-compatible fallback for legacy transactions without order_items.
+      if (!items.length) rows.filter(row => row.status === 'completed').forEach(row => (Array.isArray(row.items) ? row.items : []).forEach(item => {
+        const qty = Number(item.qty || item.quantity || 0); const unit = Number(item.price || item.unit_price || 0);
+        if (qty > 0) items.push({ name: item.name || item.product_name || item.id || 'Produk', qty, revenue: Number(item.lineTotal || item.line_total || unit * qty), orderType: row.order_type });
+      }));
+      return items;
+    }
     function renderReportProducts() { const map = {}; normalizedReportItems(REPORT_ROWS).forEach(item => { const key = item.name; if (!map[key]) map[key] = { name: key, qty: 0, revenue: 0 }; map[key].qty += item.qty; map[key].revenue += item.revenue; }); const sort = document.getElementById('report-product-sort')?.value || 'qty'; const rows = Object.values(map).sort((a,b) => sort === 'revenue' ? b.revenue - a.revenue : b.qty - a.qty); document.getElementById('rep-products-body').innerHTML = rows.length ? rows.map((row,i) => `<tr><td class="p-2 font-black text-emerald-600">${i+1}</td><td class="p-2 font-bold">${escapeHtml(row.name)}</td><td class="p-2 text-right font-mono">${row.qty.toLocaleString('id-ID')}</td><td class="p-2 text-right font-mono">${reportMoney(row.revenue)}</td><td class="p-2 text-right font-mono">${reportMoney(row.qty ? row.revenue / row.qty : 0)}</td></tr>`).join('') : '<tr><td colspan="5" class="p-4 text-center text-slate-400">Belum ada data produk.</td></tr>'; const top = rows.slice(0,5); document.getElementById('rep-top-products-summary').innerHTML = top.length ? top.map((row,i) => `<div class="flex justify-between py-1"><span><b>${i+1}.</b> ${escapeHtml(row.name)}</span><b>${row.qty} item</b></div>`).join('') : 'Belum ada data produk.'; }
+    function loadReportProducts() { renderReportProducts(); }
     function renderReportVoids() { const rows = REPORT_ROWS.filter(row => row.status === 'voided'); document.getElementById('rep-void-history-body').innerHTML = rows.length ? rows.map(row => `<tr><td class="p-2 font-mono font-bold">${escapeHtml(row.trx_id)}</td><td class="p-2">${escapeHtml(row.date || '')}</td><td class="p-2">${escapeHtml(row.cashier || '-')}</td><td class="p-2 font-mono">${reportMoney(row.grand_total)}</td><td class="p-2">${escapeHtml(row.void_reason || '-')}</td><td class="p-2">${escapeHtml(row.voided_at || '-')}</td></tr>`).join('') : '<tr><td colspan="6" class="p-4 text-center text-slate-400">Belum ada transaksi void.</td></tr>'; }
     function renderReportTransactions() { document.getElementById('rep-transactions-body').innerHTML = REPORT_ROWS.length ? REPORT_ROWS.map(row => `<tr><td class="p-2 font-mono font-bold">${escapeHtml(row.trx_id)}</td><td class="p-2">${escapeHtml(row.date || '')} ${escapeHtml(row.time || '')}</td><td class="p-2">${escapeHtml(row.cashier || '-')}</td><td class="p-2">${escapeHtml(row.order_type || '-')}</td><td class="p-2">${escapeHtml(row.payment_method || '-')}</td><td class="p-2 text-right font-mono">${reportMoney(row.grand_total)}</td><td class="p-2"><span class="px-2 py-1 rounded-full text-[10px] font-bold ${row.status === 'voided' ? 'bg-red-100 text-red-700' : 'bg-emerald-100 text-emerald-700'}">${row.status === 'voided' ? 'Void' : 'Selesai'}</span></td></tr>`).join('') : '<tr><td colspan="7" class="p-4 text-center text-slate-400">Belum ada transaksi.</td></tr>'; }
     function renderReportShifts() { document.getElementById('rep-shifts-body').innerHTML = `<table class="w-full text-left text-xs"><thead><tr class="bg-slate-100 uppercase text-[10px]"><th class="p-2">Status</th><th class="p-2">Buka</th><th class="p-2">Tutup</th><th class="p-2 text-right">Kas awal</th><th class="p-2 text-right">Selisih</th></tr></thead><tbody>${REPORT_SHIFTS.length ? REPORT_SHIFTS.map(row => `<tr class="border-t"><td class="p-2">${row.status === 'open' ? '<span class="text-emerald-600 font-bold">Aktif</span>' : '<span class="text-slate-500">Ditutup</span>'}</td><td class="p-2">${new Date(row.opened_at).toLocaleString('id-ID')}</td><td class="p-2">${row.closed_at ? new Date(row.closed_at).toLocaleString('id-ID') : '-'}</td><td class="p-2 text-right font-mono">${reportMoney(row.opening_cash)}</td><td class="p-2 text-right font-mono">${row.difference == null ? '-' : reportMoney(row.difference)}</td></tr>`).join('') : '<tr><td colspan="5" class="p-4 text-center text-slate-400">Belum ada shift.</td></tr>'}</tbody></table>`; }
