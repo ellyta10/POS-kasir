@@ -19,6 +19,8 @@
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
   <!-- Supabase JS Client -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <!-- Shared utilities: loaded before the legacy app script during incremental refactoring -->
+  <script src="src/shared/pos-utils.js"></script>
 
   <script>
     tailwind.config = {
@@ -854,39 +856,9 @@
     const DEFAULT_SUPABASE_URL = 'https://miendexhmlmwyknjevui.supabase.co';
     const DEFAULT_SUPABASE_KEY = 'sb_publishable_fpaZwZ-bWp_41u6z_FF1XQ_cESYDE29';
 
-    // ===== Helper keamanan & penyimpanan (Batch 1) =====
-    // Escape teks sebelum dimasukkan ke innerHTML / atribut HTML (anti XSS).
-    function escapeHtml(value) {
-      return String(value ?? '').replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
-    }
-    // Baca JSON dari localStorage; data rusak/tipe salah tidak boleh membuat aplikasi mati.
-    function loadLocal(key, fallback) {
-      try {
-        const raw = localStorage.getItem(key);
-        if (raw === null) return fallback;
-        const parsed = JSON.parse(raw);
-        if (parsed === null || parsed === undefined) return fallback;
-        if (Array.isArray(fallback) !== Array.isArray(parsed)) return fallback;
-        if (typeof fallback === 'object' && typeof parsed !== 'object') return fallback;
-        return parsed;
-      } catch (e) {
-        console.warn('localStorage rusak, memakai nilai bawaan:', key, e);
-        return fallback;
-      }
-    }
-    function getLocalString(key) {
-      try { return localStorage.getItem(key); } catch (e) { return null; }
-    }
-    // Tulis ke localStorage tanpa pernah melempar error (kuota penuh / mode privat).
-    function safeLocalSet(key, value) {
-      try {
-        localStorage.setItem(key, typeof value === 'string' ? value : JSON.stringify(value));
-        return true;
-      } catch (e) {
-        console.warn('Gagal menyimpan ke localStorage:', key, e);
-        return false;
-      }
-    }
+    // ===== Helper keamanan & penyimpanan (incremental refactor) =====
+    // API lokal dipertahankan agar 142 fungsi existing tidak berubah sekaligus.
+    const { escapeHtml, loadLocal, getLocalString, safeLocalSet } = window.POSUtils;
 
     let SUPABASE_URL = getLocalString('nyonya_supabase_url') || DEFAULT_SUPABASE_URL;
     let SUPABASE_KEY = getLocalString('nyonya_supabase_key') || DEFAULT_SUPABASE_KEY;
