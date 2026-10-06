@@ -23,6 +23,7 @@
   <script src="src/shared/pos-utils.js"></script>
   <script src="src/payment/payment-rules.js"></script>
   <script src="src/data/products.repository.js"></script>
+  <script src="src/data/members.repository.js"></script>
 
   <script>
     tailwind.config = {
@@ -923,6 +924,7 @@
         .on('postgres_changes', { event: '*', schema: 'public', table: 'active_bills' }, async () => { await loadActiveBillsFromSupabase(); renderTableOptions(); })
         .on('postgres_changes', { event: '*', schema: 'public', table: 'categories' }, async () => { await loadCategoriesFromSupabase(); })
         .on('postgres_changes', { event: '*', schema: 'public', table: 'restaurant_tables' }, async () => { await loadTablesFromSupabase(); renderTableOptions(); })
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'members' }, async () => { await loadMembersFromSupabase(); })
         .on('postgres_changes', { event: '*', schema: 'public', table: 'store_config' }, async () => { await loadStoreConfigFromSupabase(); })
         .subscribe();
     }
@@ -1239,9 +1241,10 @@
 
     async function loadMembersFromSupabase() {
       if (!supabaseClient) return;
-      const { data, error } = await supabaseClient.from('members').select('id,name,phone,points').order('name').limit(1000);
+      const { data, error } = await window.POSMembersRepository.list(supabaseClient);
       if (error) throw error;
-      MEMBERS = data || [];
+      MEMBERS = (data || []).map(window.POSMembersRepository.normalizeMember);
+      safeLocalSet('nyonya_members', MEMBERS);
       renderMemberDropdown();
     }
 
@@ -2333,9 +2336,12 @@
       const phone = document.getElementById('new-member-phone').value.trim();
       if (!name || !phone) { showToast('Nama dan nomor telepon wajib diisi', 'error'); return; }
       if (!supabaseClient) { showToast('Supabase belum tersambung', 'error'); return; }
-      const { data: member, error } = await supabaseClient.rpc('create_member', { p_id: 'm_' + Date.now(), p_name: name, p_phone: phone });
+      const { data: member, error } = await window.POSMembersRepository.create(supabaseClient, { id: 'm_' + Date.now(), name, phone });
       if (error) { showToast('Gagal menyimpan member: ' + error.message, 'error'); return; }
-      MEMBERS.push(member); renderMemberDropdown(); closeAddMemberModal(); showToast('Member berhasil ditambah di Supabase', 'success');
+      const normalizedMember = window.POSMembersRepository.normalizeMember(Array.isArray(member) ? member[0] : member);
+      MEMBERS.push(normalizedMember);
+      safeLocalSet('nyonya_members', MEMBERS);
+      renderMemberDropdown(); closeAddMemberModal(); showToast('Member berhasil ditambah di Supabase', 'success');
     }
     function loadPrinterSettings() {
       const name = document.getElementById('setting-printer-name');
