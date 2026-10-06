@@ -1364,6 +1364,10 @@
       if (tableWrapper) tableWrapper.classList.toggle('hidden', currentOrderType !== 'Dine In');
       const moveButton = document.getElementById('btn-move-table');
       if (moveButton) moveButton.classList.toggle('hidden', currentOrderType !== 'Dine In');
+      const gojekPaymentButton = document.getElementById('pay-method-gojek-app');
+      if (gojekPaymentButton) gojekPaymentButton.classList.toggle('hidden', currentOrderType !== 'Gojek');
+      const grabPaymentButton = document.getElementById('pay-method-grab-app');
+      if (grabPaymentButton) grabPaymentButton.classList.toggle('hidden', currentOrderType !== 'Grab');
     }
 
     function setOrderType(type) {
