@@ -3,7 +3,7 @@
   const DASHBOARD_RPC = 'get_report_dashboard';
   const TRANSACTION_SELECT = 'id,trx_id,date,time,table_name,order_type,cashier,subtotal,tax,service_charge,discount,member_discount,grand_total,payment_method,items,status,voided_at,voided_by,void_reason';
   const ORDER_ITEMS_SELECT = 'transaction_id,product_id,product_name,unit_price,quantity,line_total';
-  const MATERIAL_SELECT = 'id,name,stock,unit,cost,reorder_level';
+  const MATERIAL_SELECT = 'id,name,stock,unit,cost';
   const MOVEMENT_SELECT = 'raw_material_id,quantity,movement_type,created_at,notes';
   const SHIFT_SELECT = 'id,user_id,opened_at,closed_at,opening_cash,closing_cash,expected_cash,difference,status';
 
