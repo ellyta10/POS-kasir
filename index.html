@@ -28,6 +28,7 @@
   <script src="src/data/active-bills.repository.js"></script>
   <script src="src/data/cash-sessions.repository.js"></script>
   <script src="src/data/transactions.repository.js"></script>
+  <script src="src/data/reports.repository.js"></script>
 
   <script>
     tailwind.config = {
@@ -775,6 +776,12 @@
 
         <div id="rep-view-summary" class="space-y-4">
           <div class="grid grid-cols-2 xl:grid-cols-4 gap-3"><div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm"><span class="text-[10px] font-bold text-slate-400 uppercase">Omzet Bersih</span><h3 id="rep-total-revenue" class="text-xl font-black font-mono text-emerald-600 mt-1">Rp 0</h3><p id="rep-revenue-change" class="text-[10px] mt-1 text-slate-400">— vs periode sebelumnya</p></div><div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm"><span class="text-[10px] font-bold text-slate-400 uppercase">Transaksi</span><h3 id="rep-total-orders" class="text-xl font-black font-mono text-slate-800 mt-1">0</h3><p id="rep-orders-change" class="text-[10px] mt-1 text-slate-400">— vs periode sebelumnya</p></div><div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm"><span class="text-[10px] font-bold text-slate-400 uppercase">Rata-rata Order</span><h3 id="rep-avg-order" class="text-xl font-black font-mono text-indigo-600 mt-1">Rp 0</h3><p class="text-[10px] mt-1 text-slate-400">AOV transaksi selesai</p></div><div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm"><span class="text-[10px] font-bold text-slate-400 uppercase">Total Void</span><h3 id="rep-total-void" class="text-xl font-black font-mono text-red-600 mt-1">Rp 0</h3><p id="rep-void-count" class="text-[10px] mt-1 text-slate-400">0 transaksi</p></div></div>
+          <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <div class="bg-white p-3 rounded-2xl border border-slate-200 shadow-sm"><span class="text-[10px] font-bold text-slate-400 uppercase">Pajak</span><strong id="rep-tax-total" class="block mt-1 font-mono text-sm text-slate-700">Rp 0</strong></div>
+            <div class="bg-white p-3 rounded-2xl border border-slate-200 shadow-sm"><span class="text-[10px] font-bold text-slate-400 uppercase">Service Charge</span><strong id="rep-service-total" class="block mt-1 font-mono text-sm text-slate-700">Rp 0</strong></div>
+            <div class="bg-white p-3 rounded-2xl border border-slate-200 shadow-sm"><span class="text-[10px] font-bold text-slate-400 uppercase">Diskon</span><strong id="rep-discount-total" class="block mt-1 font-mono text-sm text-amber-600">Rp 0</strong></div>
+            <div class="bg-white p-3 rounded-2xl border border-slate-200 shadow-sm"><span class="text-[10px] font-bold text-slate-400 uppercase">Diskon Member</span><strong id="rep-member-discount-total" class="block mt-1 font-mono text-sm text-amber-600">Rp 0</strong></div>
+          </div>
           <div class="grid lg:grid-cols-5 gap-4"><div class="lg:col-span-3 bg-white p-4 rounded-2xl border border-slate-200 shadow-sm"><div class="flex justify-between items-center mb-2"><h4 class="font-bold text-sm">Omzet Penjualan</h4><span class="text-[10px] text-slate-400">per tanggal</span></div><div id="rep-daily-chart" class="flex items-end gap-1 h-44 border-b border-slate-200"></div></div><div class="lg:col-span-2 bg-white p-4 rounded-2xl border border-slate-200 shadow-sm"><h4 class="font-bold text-sm mb-3">Metode Pembayaran</h4><div id="rep-payment-breakdown" class="space-y-2"></div><div class="mt-3 pt-3 border-t text-right font-mono font-black text-emerald-600" id="rep-payment-total">Rp 0</div></div></div>
           <div class="grid lg:grid-cols-2 gap-4"><div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm"><h4 class="font-bold text-sm mb-3">Channel Order</h4><div id="rep-channel-breakdown" class="space-y-2"></div></div><div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm"><h4 class="font-bold text-sm mb-3">Produk Terlaris</h4><div id="rep-top-products-summary" class="text-xs text-slate-500">Muat setelah laporan produk dibuka.</div></div></div>
         </div>
@@ -2139,7 +2146,7 @@
       const range = getReportDateRange(); const compare = getReportCompareRange(range);
       const cashier = document.getElementById('report-cashier-filter')?.value || null;
       const orderType = document.getElementById('report-channel-filter')?.value || null;
-      const { data, error } = await supabaseClient.rpc('get_report_dashboard', { p_from: range.from, p_to: range.to, p_compare_from: compare.from, p_compare_to: compare.to, p_cashier: cashier, p_order_type: orderType });
+      const { data, error } = await window.POSReportsRepository.dashboard(supabaseClient, { from: range.from, to: range.to, compareFrom: compare.from, compareTo: compare.to, cashier, orderType });
       if (error) throw error;
       REPORT_DASHBOARD = data || {}; REPORT_RANGE = range;
       document.getElementById('report-period-label').textContent = `${range.from} — ${range.to} · dibandingkan ${compare.from} — ${compare.to}`;
@@ -2150,11 +2157,11 @@
       showToast('Dashboard laporan dimuat dari Supabase', 'success');
     }
     async function loadReportRows(range, cashier, orderType) {
-      const query = window.POSTransactionsRepository.listReportRows(supabaseClient, { from: range.from, to: range.to, cashier, orderType });
+      const query = window.POSReportsRepository.transactions(supabaseClient, { from: range.from, to: range.to, cashier, orderType });
       const { data, error } = await query; if (error) throw error; REPORT_ROWS = data || [];
       const transactionIds = REPORT_ROWS.map(row => row.id).filter(Boolean);
       if (transactionIds.length) {
-        const { data: orderItems, error: orderItemsError } = await window.POSTransactionsRepository.listOrderItems(supabaseClient, transactionIds);
+        const { data: orderItems, error: orderItemsError } = await window.POSReportsRepository.orderItems(supabaseClient, transactionIds);
         if (orderItemsError) throw orderItemsError;
         REPORT_ORDER_ITEMS = orderItems || [];
       } else {
@@ -2165,18 +2172,14 @@
       renderReportProducts(); renderReportVoids(); renderReportTransactions();
     }
     async function loadReportOperationalData(range) {
-      const [{ data: materials, error: materialError }, { data: movements, error: movementError }, { data: shifts, error: shiftError }] = await Promise.all([
-        supabaseClient.from('raw_materials').select('id,name,stock,unit,cost').order('name').limit(500),
-        supabaseClient.from('inventory_movements').select('raw_material_id,quantity,movement_type,created_at,notes').gte('created_at', `${range.from}T00:00:00`).lte('created_at', `${range.to}T23:59:59`).order('created_at', { ascending: false }).limit(5000),
-        window.POSCashSessionsRepository.listForReport(supabaseClient, range)
-      ]);
+      const [{ data: materials, error: materialError }, { data: movements, error: movementError }, { data: shifts, error: shiftError }] = await window.POSReportsRepository.operational(supabaseClient, range, window.POSCashSessionsRepository);
       if (materialError) throw materialError; if (movementError) throw movementError; if (shiftError) throw shiftError;
       REPORT_MATERIALS = materials || []; REPORT_MOVEMENTS = movements || []; REPORT_SHIFTS = shifts || [];
       renderReportInventory(); renderReportShifts();
     }
     function renderReportDashboard() {
       const c = REPORT_DASHBOARD.current || {}, p = REPORT_DASHBOARD.previous || {}, v = REPORT_DASHBOARD.void || {};
-      document.getElementById('rep-total-revenue').textContent = reportMoney(c.revenue); document.getElementById('rep-total-orders').textContent = Number(c.orders || 0).toLocaleString('id-ID'); document.getElementById('rep-avg-order').textContent = reportMoney(c.aov); document.getElementById('rep-total-void').textContent = reportMoney(v.value); document.getElementById('rep-void-count').textContent = `${Number(v.count || 0).toLocaleString('id-ID')} transaksi void`;
+      document.getElementById('rep-total-revenue').textContent = reportMoney(c.revenue); document.getElementById('rep-total-orders').textContent = Number(c.orders || 0).toLocaleString('id-ID'); document.getElementById('rep-tax-total').textContent = reportMoney(c.tax); document.getElementById('rep-service-total').textContent = reportMoney(c.service_charge); document.getElementById('rep-discount-total').textContent = reportMoney(c.discount); document.getElementById('rep-member-discount-total').textContent = reportMoney(c.member_discount); document.getElementById('rep-avg-order').textContent = reportMoney(c.aov); document.getElementById('rep-total-void').textContent = reportMoney(v.value); document.getElementById('rep-void-count').textContent = `${Number(v.count || 0).toLocaleString('id-ID')} transaksi void`;
       setReportChange('rep-revenue-change', c.revenue, p.revenue); setReportChange('rep-orders-change', c.orders, p.orders);
       const payments = REPORT_DASHBOARD.payments || []; document.getElementById('rep-payment-breakdown').innerHTML = payments.length ? payments.map(row => `<div class="flex justify-between items-center text-xs"><span>${escapeHtml(row.method || 'Lainnya')} <small class="text-slate-400">(${row.orders})</small></span><strong class="font-mono">${reportMoney(row.revenue)}</strong></div>`).join('') : '<div class="text-xs text-slate-400">Belum ada data pembayaran.</div>';
       document.getElementById('rep-payment-total').textContent = reportMoney(payments.reduce((sum, row) => sum + Number(row.revenue || 0), 0));

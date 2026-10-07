@@ -1,7 +1,7 @@
 /* Transaction data access layer. Retry, payment calculations, and UI state remain in the app layer. */
 (function attachTransactionsRepository(global) {
-  const HISTORY_SELECT = 'trx_id,date,time,table_name,order_type,cashier,subtotal,tax,grand_total,payment_method,items,status,voided_at,void_reason';
-  const REPORT_SELECT = 'id,trx_id,date,time,table_name,order_type,cashier,subtotal,tax,grand_total,payment_method,items,status,voided_at,voided_by,void_reason';
+  const HISTORY_SELECT = 'trx_id,date,time,table_name,order_type,cashier,subtotal,tax,service_charge,discount,member_discount,grand_total,payment_method,items,status,voided_at,void_reason';
+  const REPORT_SELECT = 'id,trx_id,date,time,table_name,order_type,cashier,subtotal,tax,service_charge,discount,member_discount,grand_total,payment_method,items,status,voided_at,voided_by,void_reason';
   const ORDER_ITEMS_SELECT = 'transaction_id,product_id,product_name,unit_price,quantity,line_total';
 
   function checkoutAtomic(client, payload) {
