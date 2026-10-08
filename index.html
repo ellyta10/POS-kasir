@@ -112,8 +112,10 @@
       .app-header-actions > button:not(#mobile-header-menu-button) { display: none; }
       #mobile-header-menu-button { display: flex; min-height: 38px; width: 38px; padding: 0; align-items: center; justify-content: center; }
       .app-header-actions.is-open { position: fixed; top: 64px; left: .5rem; right: .5rem; z-index: 45; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); padding: .6rem; border: 1px solid #334155; border-radius: 1rem; background: #0f172a; box-shadow: 0 18px 35px rgb(15 23 42 / .35); }
-      .app-header-actions.is-open > button:not(#mobile-header-menu-button) { display: flex; min-width: 0; justify-content: center; }
-      .app-header-actions.is-open #supabase-status-badge { display: flex; grid-column: 1 / -1; justify-content: center; }
+      .app-header-actions.is-open > button:not(#mobile-header-menu-button) { display: flex; width: 100%; min-width: 0; max-width: 100%; overflow: hidden; justify-content: center; white-space: nowrap; }
+      .app-header-actions.is-open > button:not(#mobile-header-menu-button) > span { min-width: 0; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .app-header-actions.is-open #header-user-name { max-width: 10rem; }
+      .app-header-actions.is-open #supabase-status-badge { display: flex; grid-column: 1 / -1; width: calc(100% - 44px); justify-content: center; }
       .app-header-actions.is-open #mobile-header-menu-button { display: flex; position: absolute; top: .6rem; right: .6rem; }
       main { height: calc(100dvh - 64px); min-height: 0; flex: 1 1 0%; overflow: hidden; }
       main > section:first-child { min-height: 0; }
