@@ -88,6 +88,9 @@
       #mobile-cart-backdrop.is-open { display: block; }
     }
     @media (min-width: 1024px) {
+      body { height: 100dvh; overflow: hidden; }
+      main { min-height: 0; }
+      #cart-panel { height: 100%; max-height: none; }
       #cart-panel .mobile-cart-handle, #mobile-cart-backdrop, #mobile-cart-toggle { display: none !important; }
     }
 
@@ -272,7 +275,7 @@
       </div>
 
       <!-- CART ACTIONS: payment details open only when cashier chooses Bayar Kasir -->
-      <div id="payment-panel" class="p-3.5 border-t border-slate-300 bg-white shrink-0 shadow-2xl">
+      <div id="payment-panel" class="mt-auto p-3.5 border-t border-slate-300 bg-white shrink-0 shadow-2xl">
         <div class="grid grid-cols-2 gap-2">
           <button onclick="sendToKitchen()" class="py-3 px-2 bg-slate-800 hover:bg-slate-900 text-white rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-md active:scale-95">
             <i class="fa-solid fa-fire-burner text-amber-400"></i><span>Order Dapur</span>
