@@ -57,6 +57,11 @@
     .rep-tab{color:#475569;background:transparent;border-bottom:3px solid transparent}.rep-tab:hover{background:#f8fafc}.rep-tab-active{color:#059669;background:#fff;border-top:1px solid #e2e8f0;border-left:1px solid #e2e8f0;border-right:1px solid #e2e8f0;border-bottom:3px solid #10b981}
     .no-scrollbar::-webkit-scrollbar { display: none; }
     .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    .cash-keypad-digit { min-height: 42px; border-radius: .65rem; background: #f8fafc; color: #1e293b; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .95rem; font-weight: 800; box-shadow: inset 0 -2px 0 #e2e8f0; transition: background .15s, transform .15s; }
+    .cash-keypad-digit:hover { background: #f1f5f9; }
+    .cash-keypad-digit:active, .cash-keypad-quick:active { transform: scale(.95); }
+    .cash-keypad-quick { min-height: 34px; border-radius: .55rem; background: #fff7ed; color: #c2410c; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .7rem; font-weight: 800; transition: background .15s, transform .15s; }
+    .cash-keypad-quick:hover { background: #ffedd5; }
     
     /* Mobile-safe viewport and touch targets */
     html { min-height: 100%; }
@@ -324,8 +329,20 @@
             </div>
             <div id="cash-payment-section" class="space-y-3 bg-slate-50 p-3 rounded-xl border border-slate-200">
               <div class="flex justify-between items-center text-xs font-semibold text-slate-600"><span>Uang Diterima (Tunai)</span><span id="cash-change-label" class="font-bold text-emerald-600">Masukkan nominal pembayaran</span></div>
-              <input type="text" inputmode="numeric" id="cash-given-input" oninput="sanitizeCashInput(this); calculateCashChange()" placeholder="Masukkan Nominal..." class="w-full px-3 py-3 bg-white border border-slate-200 rounded-xl text-lg font-mono font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-brand-500">
-              <div class="grid grid-cols-4 gap-1.5"><button onclick="setExactCash()" class="py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 text-[10px] font-bold rounded-lg">Uang Pas</button><button onclick="addCashGiven(20000)" class="py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 text-[10px] font-mono font-bold rounded-lg">20rb</button><button onclick="addCashGiven(50000)" class="py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 text-[10px] font-mono font-bold rounded-lg">50rb</button><button onclick="addCashGiven(100000)" class="py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 text-[10px] font-mono font-bold rounded-lg">100rb</button></div>
+              <input type="text" inputmode="numeric" id="cash-given-input" oninput="sanitizeCashInput(this); calculateCashChange()" placeholder="Masukkan Nominal..." autocomplete="off" class="w-full px-3 py-3 bg-white border border-slate-200 rounded-xl text-lg font-mono font-bold text-slate-800 text-right focus:outline-none focus:ring-2 focus:ring-brand-500">
+              <div class="rounded-xl border border-slate-200 bg-white p-2.5 shadow-sm">
+                <div class="flex items-center justify-between mb-2"><span class="text-[10px] font-black uppercase tracking-wider text-slate-400">Keypad nominal</span><span class="text-[10px] text-slate-400">Rp</span></div>
+                <div class="grid grid-cols-3 gap-1.5">
+                  <button type="button" onclick="clearCashInput()" class="py-2.5 rounded-lg bg-rose-50 text-rose-600 text-xs font-black hover:bg-rose-100 active:scale-95 transition">Hapus</button>
+                  <button type="button" onclick="setExactCash()" class="py-2.5 rounded-lg bg-emerald-50 text-emerald-700 text-xs font-black hover:bg-emerald-100 active:scale-95 transition">Uang Pas</button>
+                  <button type="button" onclick="backspaceCashInput()" aria-label="Hapus satu angka" class="py-2.5 rounded-lg bg-slate-100 text-slate-700 text-base font-black hover:bg-slate-200 active:scale-95 transition"><i class="fa-solid fa-delete-left"></i></button>
+                  <button type="button" onclick="appendCashDigit('1')" class="cash-keypad-digit">1</button><button type="button" onclick="appendCashDigit('2')" class="cash-keypad-digit">2</button><button type="button" onclick="appendCashDigit('3')" class="cash-keypad-digit">3</button>
+                  <button type="button" onclick="appendCashDigit('4')" class="cash-keypad-digit">4</button><button type="button" onclick="appendCashDigit('5')" class="cash-keypad-digit">5</button><button type="button" onclick="appendCashDigit('6')" class="cash-keypad-digit">6</button>
+                  <button type="button" onclick="appendCashDigit('7')" class="cash-keypad-digit">7</button><button type="button" onclick="appendCashDigit('8')" class="cash-keypad-digit">8</button><button type="button" onclick="appendCashDigit('9')" class="cash-keypad-digit">9</button>
+                  <button type="button" onclick="appendCashDigit('000')" class="cash-keypad-digit text-sm">000</button><button type="button" onclick="appendCashDigit('0')" class="cash-keypad-digit">0</button><button type="button" onclick="appendCashDigit('00')" class="cash-keypad-digit text-sm">00</button>
+                </div>
+                <div class="grid grid-cols-3 gap-1.5 mt-1.5"><button type="button" onclick="addCashGiven(20000)" class="cash-keypad-quick">+20rb</button><button type="button" onclick="addCashGiven(50000)" class="cash-keypad-quick">+50rb</button><button type="button" onclick="addCashGiven(100000)" class="cash-keypad-quick">+100rb</button></div>
+              </div>
             </div>
           </div>
         </div>
@@ -1560,8 +1577,17 @@
       lbl.textContent = change >= 0 ? `Kembalian: Rp ${change.toLocaleString('id-ID')}` : `Kurang: Rp ${Math.abs(change).toLocaleString('id-ID')}`;
     }
 
-    function setExactCash() { document.getElementById('cash-given-input').value = calculateGrandTotal(); calculateCashChange(); }
-    function addCashGiven(amt) { const input = document.getElementById('cash-given-input'); input.value = (parseFloat(input.value) || 0) + amt; calculateCashChange(); }
+    function focusCashInput() { document.getElementById('cash-given-input')?.focus(); }
+    function appendCashDigit(digit) {
+      const input = document.getElementById('cash-given-input');
+      if (!input) return;
+      input.value = `${input.value || ''}${digit}`.replace(/^0+(?=\d)/, '');
+      sanitizeCashInput(input); calculateCashChange(); focusCashInput();
+    }
+    function clearCashInput() { const input = document.getElementById('cash-given-input'); if (!input) return; input.value = ''; calculateCashChange(); focusCashInput(); }
+    function backspaceCashInput() { const input = document.getElementById('cash-given-input'); if (!input) return; input.value = input.value.slice(0, -1); calculateCashChange(); focusCashInput(); }
+    function setExactCash() { const input = document.getElementById('cash-given-input'); if (!input) return; input.value = calculateGrandTotal(); calculateCashChange(); focusCashInput(); }
+    function addCashGiven(amt) { const input = document.getElementById('cash-given-input'); if (!input) return; input.value = (parseFloat(input.value) || 0) + amt; calculateCashChange(); focusCashInput(); }
 
     async function sendToKitchen() {
       if(CART.length === 0) { showToast('Keranjang kosong!', 'error'); return; }
