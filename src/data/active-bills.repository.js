@@ -15,20 +15,21 @@
     return client
       .from('active_bills')
       .select(BILL_SELECT)
+      .eq('order_type', 'Dine In')
       .limit(500);
   }
 
   function save(client, bill) {
-    return client
-      .from('active_bills')
-      .upsert(bill, { onConflict: 'table_name' });
+    return client.rpc('save_active_bill', {
+      p_table_name: bill.table_name,
+      p_order_type: bill.order_type,
+      p_items: bill.items,
+      p_order_time: bill.order_time || null
+    });
   }
 
   function remove(client, tableName) {
-    return client
-      .from('active_bills')
-      .delete()
-      .eq('table_name', tableName);
+    return client.rpc('remove_active_bill', { p_table_name: tableName });
   }
 
   function move(client, fromTable, toTable) {

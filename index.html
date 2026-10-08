@@ -1564,12 +1564,14 @@
       if(CART.length === 0) { showToast('Keranjang kosong!', 'error'); return; }
       const bill = { table: currentTable, orderType: currentOrderType, items: JSON.parse(JSON.stringify(CART)), time: new Date().toLocaleTimeString() };
       if (!supabaseClient) { showToast('Supabase belum tersambung', 'error'); return; }
-      const { error } = await window.POSActiveBillsRepository.save(supabaseClient, { table_name: currentTable, order_type: currentOrderType, items: bill.items, order_time: bill.time, updated_at: new Date().toISOString() });
-      if (error) { showToast('Bill dapur gagal disimpan: ' + error.message, 'error'); return; }
-      ACTIVE_BILLS[currentTable] = bill;
-      safeLocalSet('nyonya_active_bills', ACTIVE_BILLS);
-      updateActiveBillsCount();
-      renderTableOptions();
+      if (currentOrderType === 'Dine In') {
+        const { error } = await window.POSActiveBillsRepository.save(supabaseClient, { table_name: currentTable, order_type: currentOrderType, items: bill.items, order_time: bill.time, updated_at: new Date().toISOString() });
+        if (error) { showToast('Bill dapur gagal disimpan: ' + error.message, 'error'); return; }
+        ACTIVE_BILLS[currentTable] = bill;
+        safeLocalSet('nyonya_active_bills', ACTIVE_BILLS);
+        updateActiveBillsCount();
+        renderTableOptions();
+      }
 
       // Render Kitchen Ticket Content (semua data di-escape)
       const ktContent = document.getElementById('kitchen-ticket-content');
@@ -1765,7 +1767,7 @@
       trx.change = num(sr.change, trx.change);
 
       try {
-        if (ACTIVE_BILLS[currentTable]) {
+        if (currentOrderType === 'Dine In' && ACTIVE_BILLS[currentTable]) {
           const { error: billError } = await window.POSActiveBillsRepository.remove(supabaseClient, currentTable);
           if (billError) showToast('Pembayaran tersimpan, tetapi bill aktif belum terhapus: ' + billError.message, 'error');
           delete ACTIVE_BILLS[currentTable]; safeLocalSet('nyonya_active_bills', ACTIVE_BILLS); updateActiveBillsCount(); renderTableOptions();
