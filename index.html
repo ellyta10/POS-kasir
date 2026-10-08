@@ -108,6 +108,13 @@
       .app-shell-header > div:first-child > div:last-child { min-width: 0; }
       .app-shell-header > div:last-child { min-width: 0; }
       .app-shell-header h1, .app-shell-header p { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .app-header-actions { position: relative; overflow: visible !important; }
+      .app-header-actions > button:not(#mobile-header-menu-button) { display: none; }
+      #mobile-header-menu-button { display: flex; min-height: 38px; width: 38px; padding: 0; align-items: center; justify-content: center; }
+      .app-header-actions.is-open { position: fixed; top: 64px; left: .5rem; right: .5rem; z-index: 45; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); padding: .6rem; border: 1px solid #334155; border-radius: 1rem; background: #0f172a; box-shadow: 0 18px 35px rgb(15 23 42 / .35); }
+      .app-header-actions.is-open > button:not(#mobile-header-menu-button) { display: flex; min-width: 0; justify-content: center; }
+      .app-header-actions.is-open #supabase-status-badge { display: flex; grid-column: 1 / -1; justify-content: center; }
+      .app-header-actions.is-open #mobile-header-menu-button { display: flex; position: absolute; top: .6rem; right: .6rem; }
       main { height: calc(100dvh - 64px); min-height: 0; flex: 1 1 0%; overflow: hidden; }
       main > section:first-child { min-height: 0; }
       main > section:first-child > div:last-child { min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
@@ -187,7 +194,8 @@
     </div>
 
     <!-- QUICK ACTIONS & USER SWITCHER -->
-    <div class="flex items-center gap-2 overflow-x-auto py-1 no-scrollbar">
+    <div class="app-header-actions flex items-center gap-2 overflow-x-auto py-1 no-scrollbar">
+      <button type="button" id="mobile-header-menu-button" onclick="toggleMobileHeaderMenu()" class="hidden rounded-xl bg-slate-800 text-slate-200 border border-slate-700" aria-label="Buka menu POS"><i class="fa-solid fa-bars"></i></button>
       <!-- SUPABASE SYNC STATUS BADGE -->
       <div id="supabase-status-badge" class="px-2.5 py-1 rounded-xl bg-slate-800 text-slate-300 text-[10px] font-bold flex items-center gap-1.5 border border-slate-700" title="Status Supabase Cloud">
         <span id="supabase-dot" class="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span>
@@ -1485,6 +1493,13 @@
     function updateCartQty(idx, delta) { CART[idx].qty += delta; if(CART[idx].qty <= 0) CART.splice(idx, 1); renderCart(); }
     function updateCartNotes(idx, val) { CART[idx].notes = val; }
     function removeFromCart(idx) { CART.splice(idx, 1); renderCart(); }
+
+    function toggleMobileHeaderMenu(force) {
+      const actions = document.querySelector('.app-header-actions');
+      if (!actions) return;
+      const open = force === undefined ? !actions.classList.contains('is-open') : force;
+      actions.classList.toggle('is-open', open);
+    }
 
     function toggleMobileCart(force) {
       const panel = document.getElementById('cart-panel');
