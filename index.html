@@ -57,11 +57,27 @@
     .rep-tab{color:#475569;background:transparent;border-bottom:3px solid transparent}.rep-tab:hover{background:#f8fafc}.rep-tab-active{color:#059669;background:#fff;border-top:1px solid #e2e8f0;border-left:1px solid #e2e8f0;border-right:1px solid #e2e8f0;border-bottom:3px solid #10b981}
     .no-scrollbar::-webkit-scrollbar { display: none; }
     .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-    .cash-keypad-digit { min-height: 42px; border-radius: .65rem; background: #f8fafc; color: #1e293b; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .95rem; font-weight: 800; box-shadow: inset 0 -2px 0 #e2e8f0; transition: background .15s, transform .15s; }
+    .cash-keypad-digit { min-height: 38px; border-radius: .65rem; background: #f8fafc; color: #1e293b; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .95rem; font-weight: 800; box-shadow: inset 0 -2px 0 #e2e8f0; transition: background .15s, transform .15s; }
     .cash-keypad-digit:hover { background: #f1f5f9; }
     .cash-keypad-digit:active, .cash-keypad-quick:active { transform: scale(.95); }
     .cash-keypad-quick { min-height: 34px; border-radius: .55rem; background: #fff7ed; color: #c2410c; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .7rem; font-weight: 800; transition: background .15s, transform .15s; }
     .cash-keypad-quick:hover { background: #ffedd5; }
+    @media (max-width: 767px) {
+      .payment-modal-card > .payment-modal-body { padding: .65rem; overflow: hidden; }
+      .payment-modal-card .payment-modal-grid { gap: .65rem; }
+      .payment-modal-card #payment-order-items { max-height: 3.5rem; overflow: hidden; }
+      .payment-modal-card #payment-order-items > div { padding: .35rem !important; font-size: .65rem; }
+      .payment-modal-card .payment-summary-lines { margin-top: .65rem; padding-top: .65rem; font-size: .68rem; line-height: 1.15; }
+      .payment-modal-card .payment-summary-lines > div { min-height: 1.05rem; }
+      .payment-modal-card #cart-grand-total { font-size: 1rem; }
+      .payment-modal-card #cash-payment-section { padding: .5rem; gap: .4rem; }
+      .payment-modal-card #cash-payment-section > .cash-keypad-box { padding: .4rem; }
+      .payment-modal-card .cash-keypad-digit { min-height: 32px; font-size: .82rem; }
+      .payment-modal-card .cash-keypad-quick { min-height: 28px; font-size: .62rem; }
+      .payment-modal-card #cash-given-input { padding-top: .5rem; padding-bottom: .5rem; font-size: 1rem; }
+      .payment-modal-card .payment-method-button { padding-top: .45rem; padding-bottom: .45rem; }
+      .payment-modal-card .payment-modal-footer { padding: .65rem; }
+    }
     
     /* Mobile-safe viewport and touch targets */
     html { min-height: 100%; }
@@ -304,12 +320,12 @@
         </div>
         <button type="button" onclick="closePaymentModal()" class="w-10 h-10 rounded-full bg-slate-800 hover:bg-slate-700 text-white" aria-label="Tutup pembayaran"><i class="fa-solid fa-xmark"></i></button>
       </div>
-      <div class="p-4 sm:p-6 overflow-y-auto flex-1">
-        <div class="grid md:grid-cols-[1fr_1.05fr] gap-5 sm:gap-6">
+      <div class="payment-modal-body p-4 sm:p-6 overflow-y-auto flex-1">
+        <div class="payment-modal-grid grid md:grid-cols-[1fr_1.05fr] gap-5 sm:gap-6">
           <div>
             <div class="flex items-center justify-between mb-3"><h3 class="font-black">Ringkasan pesanan</h3><span id="cart-item-count" class="text-xs text-slate-400">0 item</span></div>
             <div id="payment-order-items" class="space-y-2.5 max-h-56 sm:max-h-64 overflow-y-auto pr-1"></div>
-            <div class="border-t mt-4 pt-4 space-y-2 text-sm">
+            <div class="payment-summary-lines border-t mt-4 pt-4 space-y-2 text-sm">
               <div class="flex justify-between text-slate-500"><span>Subtotal</span><b id="cart-subtotal" class="font-mono text-slate-700">Rp 0</b></div>
               <div class="flex justify-between items-center text-slate-500"><label class="flex items-center gap-2"><span>Pajak Resto (PB1 10%)</span><input type="checkbox" id="tax-toggle-checkbox" onchange="renderCart()" class="w-4 h-4 text-brand-600 rounded border-slate-300 focus:ring-brand-500 cursor-pointer"></label><b id="cart-tax" class="font-mono text-slate-700">Rp 0</b></div>
               <div class="flex justify-between items-center text-slate-500"><span>Biaya Layanan (Service)</span><select id="service-charge-select" onchange="renderCart()" class="text-xs bg-slate-100 border border-slate-200 rounded-lg px-2 py-1 font-semibold text-slate-700"><option value="0">0% (Tanpa)</option><option value="0.05">5%</option><option value="0.07" selected>7%</option></select></div>
@@ -321,16 +337,16 @@
           <div>
             <h3 class="font-black mb-3">Metode pembayaran</h3>
             <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-2 gap-2 mb-4">
-              <button onclick="setPaymentMethod('Cash')" id="pay-method-cash" class="py-3 px-2 rounded-xl text-[10px] font-bold transition border border-brand-500 bg-brand-50 text-brand-700 flex flex-col items-center gap-1"><i class="fa-solid fa-money-bill-wave text-base"></i><span>Cash</span></button>
-              <button onclick="setPaymentMethod('Gojek App')" id="pay-method-gojek-app" class="py-3 px-2 rounded-xl text-[10px] font-bold transition border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 flex flex-col items-center gap-1"><i class="fa-solid fa-mobile-screen-button text-base text-sky-600"></i><span>Gojek App</span></button>
-              <button onclick="setPaymentMethod('Grab App')" id="pay-method-grab-app" class="py-3 px-2 rounded-xl text-[10px] font-bold transition border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 flex flex-col items-center gap-1"><i class="fa-solid fa-mobile-screen-button text-base text-orange-600"></i><span>Grab App</span></button>
-              <button onclick="setPaymentMethod('QRIS')" id="pay-method-qris" class="py-3 px-2 rounded-xl text-[10px] font-bold transition border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 flex flex-col items-center gap-1"><i class="fa-solid fa-qrcode text-base"></i><span>QRIS</span></button>
-              <button onclick="setPaymentMethod('Debit')" id="pay-method-debit" class="py-3 px-2 rounded-xl text-[10px] font-bold transition border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 flex flex-col items-center gap-1"><i class="fa-solid fa-credit-card text-base"></i><span>Debit</span></button>
+              <button onclick="setPaymentMethod('Cash')" id="pay-method-cash" class="payment-method-button py-3 px-2 rounded-xl text-[10px] font-bold transition border border-brand-500 bg-brand-50 text-brand-700 flex flex-col items-center gap-1"><i class="fa-solid fa-money-bill-wave text-base"></i><span>Cash</span></button>
+              <button onclick="setPaymentMethod('Gojek App')" id="pay-method-gojek-app" class="payment-method-button py-3 px-2 rounded-xl text-[10px] font-bold transition border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 flex flex-col items-center gap-1"><i class="fa-solid fa-mobile-screen-button text-base text-sky-600"></i><span>Gojek App</span></button>
+              <button onclick="setPaymentMethod('Grab App')" id="pay-method-grab-app" class="payment-method-button py-3 px-2 rounded-xl text-[10px] font-bold transition border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 flex flex-col items-center gap-1"><i class="fa-solid fa-mobile-screen-button text-base text-orange-600"></i><span>Grab App</span></button>
+              <button onclick="setPaymentMethod('QRIS')" id="pay-method-qris" class="payment-method-button py-3 px-2 rounded-xl text-[10px] font-bold transition border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 flex flex-col items-center gap-1"><i class="fa-solid fa-qrcode text-base"></i><span>QRIS</span></button>
+              <button onclick="setPaymentMethod('Debit')" id="pay-method-debit" class="payment-method-button py-3 px-2 rounded-xl text-[10px] font-bold transition border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 flex flex-col items-center gap-1"><i class="fa-solid fa-credit-card text-base"></i><span>Debit</span></button>
             </div>
             <div id="cash-payment-section" class="space-y-3 bg-slate-50 p-3 rounded-xl border border-slate-200">
               <div class="flex justify-between items-center text-xs font-semibold text-slate-600"><span>Uang Diterima (Tunai)</span><span id="cash-change-label" class="font-bold text-emerald-600">Masukkan nominal pembayaran</span></div>
-              <input type="text" inputmode="numeric" id="cash-given-input" oninput="sanitizeCashInput(this); calculateCashChange()" placeholder="Masukkan Nominal..." autocomplete="off" class="w-full px-3 py-3 bg-white border border-slate-200 rounded-xl text-lg font-mono font-bold text-slate-800 text-right focus:outline-none focus:ring-2 focus:ring-brand-500">
-              <div class="rounded-xl border border-slate-200 bg-white p-2.5 shadow-sm">
+              <input type="text" inputmode="none" readonly aria-readonly="true" id="cash-given-input" oninput="sanitizeCashInput(this); calculateCashChange()" placeholder="Gunakan keypad di bawah" autocomplete="off" class="w-full px-3 py-3 bg-white border border-slate-200 rounded-xl text-lg font-mono font-bold text-slate-800 text-right cursor-default focus:outline-none focus:ring-2 focus:ring-brand-500">
+              <div class="cash-keypad-box rounded-xl border border-slate-200 bg-white p-2.5 shadow-sm">
                 <div class="flex items-center justify-between mb-2"><span class="text-[10px] font-black uppercase tracking-wider text-slate-400">Keypad nominal</span><span class="text-[10px] text-slate-400">Rp</span></div>
                 <div class="grid grid-cols-3 gap-1.5">
                   <button type="button" onclick="clearCashInput()" class="py-2.5 rounded-lg bg-rose-50 text-rose-600 text-xs font-black hover:bg-rose-100 active:scale-95 transition">Hapus</button>
@@ -347,7 +363,7 @@
           </div>
         </div>
       </div>
-      <div class="p-4 sm:p-5 bg-white border-t flex flex-col-reverse sm:flex-row gap-2 sm:justify-between shrink-0"><button type="button" onclick="closePaymentModal()" class="px-5 py-3 rounded-xl bg-slate-100 text-slate-600 font-bold text-sm">Kembali ke Pesanan</button><button type="button" onclick="processCheckout()" class="px-6 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-black text-sm"><i class="fa-solid fa-circle-check mr-2"></i><span>Konfirmasi & Bayar</span></button></div>
+      <div class="payment-modal-footer p-4 sm:p-5 bg-white border-t flex flex-col-reverse sm:flex-row gap-2 sm:justify-between shrink-0"><button type="button" onclick="closePaymentModal()" class="px-5 py-3 rounded-xl bg-slate-100 text-slate-600 font-bold text-sm">Kembali ke Pesanan</button><button type="button" onclick="processCheckout()" class="px-6 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-black text-sm"><i class="fa-solid fa-circle-check mr-2"></i><span>Konfirmasi & Bayar</span></button></div>
     </div>
   </div>
   </main>
