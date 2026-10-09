@@ -395,8 +395,8 @@
             <div id="payment-order-items" class="space-y-2.5 max-h-56 sm:max-h-64 overflow-y-auto pr-1"></div>
             <div class="payment-summary-lines border-t mt-4 pt-4 space-y-2 text-sm">
               <div class="flex justify-between text-slate-500"><span>Subtotal</span><b id="cart-subtotal" class="font-mono text-slate-700">Rp 0</b></div>
-              <div class="flex justify-between items-center text-slate-500"><label class="flex items-center gap-2"><span>Pajak Resto (PB1 10%)</span><input type="checkbox" id="tax-toggle-checkbox" onchange="renderCart()" class="w-4 h-4 text-brand-600 rounded border-slate-300 focus:ring-brand-500 cursor-pointer"></label><b id="cart-tax" class="font-mono text-slate-700">Rp 0</b></div>
-              <div class="flex justify-between items-center text-slate-500"><span>Biaya Layanan (Service)</span><select id="service-charge-select" onchange="renderCart()" class="text-xs bg-slate-100 border border-slate-200 rounded-lg px-2 py-1 font-semibold text-slate-700"><option value="0">0% (Tanpa)</option><option value="0.05">5%</option><option value="0.07" selected>7%</option></select></div>
+              <div id="tax-row" class="flex justify-between items-center text-slate-500"><label class="flex items-center gap-2"><span>Pajak Resto (PB1 10%)</span><input type="checkbox" id="tax-toggle-checkbox" onchange="renderCart()" class="w-4 h-4 text-brand-600 rounded border-slate-300 focus:ring-brand-500 cursor-pointer"></label><b id="cart-tax" class="font-mono text-slate-700">Rp 0</b></div>
+              <div id="service-charge-row" class="flex justify-between items-center text-slate-500"><span>Biaya Layanan (Service)</span><select id="service-charge-select" onchange="renderCart()" class="text-xs bg-slate-100 border border-slate-200 rounded-lg px-2 py-1 font-semibold text-slate-700"><option value="0">0% (Tanpa)</option><option value="0.05">5%</option><option value="0.07" selected>7%</option></select></div>
               <div class="flex justify-between items-center text-slate-500"><span>Diskon Promo</span><select id="discount-select" onchange="renderCart()" class="text-xs bg-slate-100 border border-slate-200 rounded-lg px-2 py-1 font-semibold text-slate-700"><option value="0">0% (Normal)</option><option value="0.05">5%</option><option value="0.10">10%</option><option value="0.15">15%</option><option value="0.20">20%</option></select></div>
               <div id="member-point-discount-row" class="hidden flex justify-between text-emerald-600 font-medium"><span id="member-point-label">Potongan Poin Member</span><span id="cart-member-discount" class="font-mono font-bold">- Rp 0</span></div>
               <div class="pt-3 border-t border-slate-200 flex justify-between items-center text-lg font-black text-slate-900"><span>GRAND TOTAL</span><span id="cart-grand-total" class="font-mono text-xl text-brand-600">Rp 0</span></div>
@@ -834,6 +834,12 @@
                 <label class="text-xs font-bold text-slate-600 block mb-1">Pesan Footer Struk (Catatan Kaki):</label>
                 <input type="text" id="setting-store-footer" class="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs font-bold">
               </div>
+              <div class="space-y-2 bg-emerald-50 p-3 rounded-xl border border-emerald-100">
+                <p class="text-xs font-black text-slate-700">Komponen pembayaran & struk</p>
+                <label class="flex items-center gap-2 text-xs font-semibold text-slate-700"><input type="checkbox" id="setting-tax-enabled" class="w-5 h-5"> Tampilkan Pajak Resto (PB1 10%)</label>
+                <label class="flex items-center gap-2 text-xs font-semibold text-slate-700"><input type="checkbox" id="setting-service-charge-enabled" class="w-5 h-5"> Tampilkan Service Charge</label>
+                <p class="text-[10px] text-slate-500">Jika dinonaktifkan, komponen tersebut tidak muncul di pembayaran dan struk. Perubahan berlaku untuk transaksi berikutnya.</p>
+              </div>
               <button onclick="saveStoreSettings()" class="px-4 py-2 bg-slate-800 hover:bg-slate-900 text-white text-xs font-bold rounded-xl">Simpan Pengaturan Struk</button>
             </div>
 
@@ -1015,7 +1021,10 @@
       name: "NYONYA TERASI TIBAN", 
       address: "Jl. Tiban Centre No. 88, Batam", 
       phone: "0812-3456-7890", 
-      footer: "Terima Kasih atas Kunjungan Anda!"
+      footer: "Terima Kasih atas Kunjungan Anda!",
+      taxEnabled: false,
+      serviceChargeEnabled: true,
+      serviceChargeRate: 0.07
     };
     let storeConfig = { ...DEFAULT_STORE_CONFIG, ...loadLocal('nyonya_store_config', {}) };
     delete storeConfig.adminPin; // PIN lama sudah tidak dipakai
@@ -1065,9 +1074,14 @@
     }
     async function loadStoreConfigFromSupabase() {
       if (!supabaseClient) return;
-      const { data, error } = await supabaseClient.from('store_config').select('id,name,address,phone,footer').eq('id','default').maybeSingle();
+      const { data, error } = await supabaseClient.from('store_config').select('id,name,address,phone,footer,tax_enabled,service_charge_enabled,service_charge_rate').eq('id','default').maybeSingle();
       if (error) throw error;
-      if (data) { storeConfig = { ...storeConfig, ...data }; safeLocalSet('nyonya_store_config', storeConfig); const header=document.getElementById('header-resto-name'); if(header) header.textContent=storeConfig.name; }
+      if (data) {
+        storeConfig = { ...storeConfig, ...data, taxEnabled: data.tax_enabled === true, serviceChargeEnabled: data.service_charge_enabled !== false, serviceChargeRate: Number(data.service_charge_rate ?? 0.07) };
+        safeLocalSet('nyonya_store_config', storeConfig);
+        const header=document.getElementById('header-resto-name'); if(header) header.textContent=storeConfig.name;
+        applyFinancialSettingVisibility();
+      }
     }
     // Riwayat transaksi HANYA dimuat saat dibutuhkan (Export CSV) dan tidak disimpan ke localStorage.
     async function loadTransactionHistoryFromSupabase() {
@@ -1243,6 +1257,7 @@
       if (appStarted) return;
       appStarted = true;
       document.getElementById('header-resto-name').textContent = storeConfig.name;
+      applyFinancialSettingVisibility();
       setInterval(updateLiveClock, 1000);
       updateLiveClock();
       updateSupabaseStatusUI();
@@ -1264,6 +1279,8 @@
       document.getElementById('setting-store-address').value = storeConfig.address || '';
       document.getElementById('setting-store-phone').value = storeConfig.phone || '';
       document.getElementById('setting-store-footer').value = storeConfig.footer || '';
+      document.getElementById('setting-tax-enabled').checked = storeConfig.taxEnabled === true;
+      document.getElementById('setting-service-charge-enabled').checked = storeConfig.serviceChargeEnabled !== false;
       loadPrinterSettings();
     }
 
@@ -1621,6 +1638,26 @@
       });
     }
 
+    function applyFinancialSettingVisibility() {
+      const taxEnabled = storeConfig.taxEnabled === true;
+      const serviceEnabled = storeConfig.serviceChargeEnabled !== false;
+      const taxRow = document.getElementById('tax-row');
+      const serviceRow = document.getElementById('service-charge-row');
+      const taxToggle = document.getElementById('tax-toggle-checkbox');
+      const serviceSelect = document.getElementById('service-charge-select');
+      const taxSetting = document.getElementById('setting-tax-enabled');
+      const serviceSetting = document.getElementById('setting-service-charge-enabled');
+      if (taxRow) taxRow.classList.toggle('hidden', !taxEnabled);
+      if (serviceRow) serviceRow.classList.toggle('hidden', !serviceEnabled);
+      if (taxToggle) taxToggle.checked = taxEnabled && taxToggle.checked;
+      if (serviceSelect) {
+        if (!serviceEnabled) serviceSelect.value = '0';
+        else if (storeConfig.serviceChargeRate != null) serviceSelect.value = String(storeConfig.serviceChargeRate);
+      }
+      if (taxSetting) taxSetting.checked = taxEnabled;
+      if (serviceSetting) serviceSetting.checked = serviceEnabled;
+    }
+
     function calculateGrandTotal() {
       const summary = getPaymentBreakdown();
       document.getElementById('cart-subtotal').textContent = `Rp ${summary.subtotal.toLocaleString('id-ID')}`;
@@ -1910,8 +1947,8 @@
         </div>
         <div class="space-y-0.5 text-right font-bold text-[11px]">
           <div>Subtotal: Rp ${trx.subtotal.toLocaleString('id-ID')}</div>
-          <div>Pajak (PB1): Rp ${trx.tax.toLocaleString('id-ID')}</div>
-          <div>Service Charge (${(trx.serviceRate * 100).toFixed(0)}%): Rp ${trx.serviceCharge.toLocaleString('id-ID')}</div>
+          ${Number(trx.tax) > 0 ? `<div>Pajak (PB1): Rp ${trx.tax.toLocaleString('id-ID')}</div>` : ''}
+          ${Number(trx.serviceCharge) > 0 ? `<div>Service Charge (${(trx.serviceRate * 100).toFixed(0)}%): Rp ${trx.serviceCharge.toLocaleString('id-ID')}</div>` : ''}
           <div>Diskon: - Rp ${trx.discount.toLocaleString('id-ID')}</div>
           <div>Diskon Member: - Rp ${trx.memberDiscount.toLocaleString('id-ID')}</div>
           <div class="text-sm font-black text-brand-600 pt-1 border-t">TOTAL BAYAR: Rp ${trx.grandTotal.toLocaleString('id-ID')}</div>
@@ -2176,11 +2213,16 @@
       storeConfig.address = document.getElementById('setting-store-address').value.trim();
       storeConfig.phone = document.getElementById('setting-store-phone').value.trim();
       storeConfig.footer = document.getElementById('setting-store-footer').value.trim();
+      storeConfig.taxEnabled = document.getElementById('setting-tax-enabled').checked;
+      storeConfig.serviceChargeEnabled = document.getElementById('setting-service-charge-enabled').checked;
+      storeConfig.serviceChargeRate = Number(storeConfig.serviceChargeRate ?? 0.07);
       if (!supabaseClient) return showToast('Supabase belum tersambung', 'error');
-      const { error } = await supabaseClient.from('store_config').upsert({ id:'default', name:storeConfig.name, address:storeConfig.address, phone:storeConfig.phone, footer:storeConfig.footer, updated_at:new Date().toISOString() }, { onConflict:'id' });
+      const { error } = await supabaseClient.from('store_config').upsert({ id:'default', name:storeConfig.name, address:storeConfig.address, phone:storeConfig.phone, footer:storeConfig.footer, tax_enabled:storeConfig.taxEnabled, service_charge_enabled:storeConfig.serviceChargeEnabled, service_charge_rate:storeConfig.serviceChargeRate, updated_at:new Date().toISOString() }, { onConflict:'id' });
       if (error) return showToast('Gagal menyimpan konfigurasi cloud: ' + error.message, 'error');
       safeLocalSet('nyonya_store_config', storeConfig);
       document.getElementById('header-resto-name').textContent = storeConfig.name;
+      applyFinancialSettingVisibility();
+      renderCart();
       showToast('Pengaturan tersimpan di Supabase', 'success');
     }
 
