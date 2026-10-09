@@ -85,6 +85,31 @@
       .payment-modal-card .payment-method-button { padding-top: .45rem; padding-bottom: .45rem; }
       .payment-modal-card .payment-modal-footer { padding: .5rem; flex-direction: row; }
       .payment-modal-card .payment-modal-footer button { flex: 1 1 0%; min-width: 0; padding: .55rem .35rem; font-size: .7rem; }
+
+      /* Every POS menu stays inside the mobile viewport; only its content scrolls. */
+      #kitchen-ticket-modal, #receipt-modal, #recall-bills-modal, #move-table-modal,
+      #shift-modal, #add-member-modal, #user-switch-modal, #void-transaction-modal,
+      #add-raw-material-modal, #add-product-modal { padding: .5rem; align-items: center; }
+      #kitchen-ticket-modal > div, #receipt-modal > div, #recall-bills-modal > div,
+      #move-table-modal > div, #shift-modal > div, #add-member-modal > div,
+      #user-switch-modal > div, #void-transaction-modal > div,
+      #add-raw-material-modal > div, #add-product-modal > div {
+        width: 100%; max-width: 100%; max-height: calc(100dvh - 1rem); min-height: 0;
+      }
+      #kitchen-ticket-modal > div > div, #receipt-modal > div > div,
+      #recall-bills-modal > div > div, #move-table-modal > div > div,
+      #shift-modal > div > div, #add-member-modal > div > div,
+      #user-switch-modal > div > div, #add-raw-material-modal > div > div,
+      #add-product-modal > div > div { min-height: 0; }
+      #management-modal, #reports-modal { padding: 0; align-items: stretch; }
+      #management-modal > div, #reports-modal > div {
+        width: 100vw; max-width: 100vw; height: 100dvh; max-height: 100dvh; border-radius: 0;
+      }
+      #management-modal > div > div.flex-1, #reports-modal > div > div.flex-1 {
+        min-height: 0; overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch;
+      }
+      #toast-container { left: 1rem; right: 1rem; bottom: max(1rem, env(safe-area-inset-bottom)); }
+      #toast-container > * { max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
     }
     @media (max-width: 380px) {
       .payment-modal-card .payment-modal-header { min-height: 52px; padding: .5rem .65rem; }
@@ -94,6 +119,11 @@
       .payment-modal-card .payment-summary-lines { font-size: .6rem; }
       .payment-modal-card .cash-keypad-digit { min-height: 28px; }
       .payment-modal-card .cash-keypad-quick { min-height: 24px; }
+      #product-grid { grid-template-columns: minmax(0, 1fr); }
+      #management-modal > div > div.flex-1, #reports-modal > div > div.flex-1 { padding: .75rem; }
+      #kitchen-ticket-modal, #receipt-modal, #recall-bills-modal, #move-table-modal,
+      #shift-modal, #add-member-modal, #user-switch-modal, #void-transaction-modal,
+      #add-raw-material-modal, #add-product-modal { padding: .35rem; }
     }
     
     /* Mobile-safe viewport and touch targets */
