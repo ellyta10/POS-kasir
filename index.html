@@ -62,6 +62,8 @@
     .cash-keypad-digit:active, .cash-keypad-quick:active { transform: scale(.95); }
     .cash-keypad-quick { min-height: 34px; border-radius: .55rem; background: #fff7ed; color: #c2410c; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .7rem; font-weight: 800; transition: background .15s, transform .15s; }
     .cash-keypad-quick:hover { background: #ffedd5; }
+    @keyframes cart-button-bump { 0%,100% { transform: scale(1); } 35% { transform: scale(1.04); } 70% { transform: scale(.98); } }
+    #mobile-cart-toggle.cart-button-bump { animation: cart-button-bump .42s ease-out; }
     .payment-modal-body { min-height: 0; overflow: hidden !important; }
     @media (max-width: 767px) {
       #payment-modal { padding: 0; }
@@ -109,7 +111,8 @@
         min-height: 0; overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch;
       }
       #toast-container { left: 1rem; right: 1rem; bottom: max(1rem, env(safe-area-inset-bottom)); }
-      #toast-container > * { max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
+    #toast-container > * { max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
+      #mobile-cart-toggle .cart-total-label { opacity: .85; font-weight: 700; }
     }
     @media (max-width: 380px) {
       .payment-modal-card .payment-modal-header { min-height: 52px; padding: .5rem .65rem; }
@@ -119,6 +122,7 @@
       .payment-modal-card .payment-summary-lines { font-size: .6rem; }
       .payment-modal-card .cash-keypad-digit { min-height: 28px; }
       .payment-modal-card .cash-keypad-quick { min-height: 24px; }
+      #mobile-cart-toggle .cart-total-label { display: none; }
       #product-grid { grid-template-columns: minmax(0, 1fr); }
       #management-modal > div > div.flex-1, #reports-modal > div > div.flex-1 { padding: .75rem; }
       #kitchen-ticket-modal, #receipt-modal, #recall-bills-modal, #move-table-modal,
@@ -443,7 +447,7 @@
 
   <div id="mobile-cart-backdrop" onclick="toggleMobileCart(false)" class="fixed inset-0 bg-slate-900/40 z-30 hidden"></div>
   <button id="mobile-cart-toggle" type="button" onclick="toggleMobileCart()" class="lg:hidden fixed bottom-4 left-4 right-4 z-30 min-h-[48px] rounded-2xl bg-emerald-600 px-4 py-3 text-white font-extrabold shadow-xl flex items-center justify-center">
-    <span>Keranjang (<span id="mobile-cart-count">0</span>)</span>
+    <span>Keranjang (<span id="mobile-cart-count">0</span>)</span><span class="cart-total-label ml-2">· <span id="mobile-cart-total">Rp 0</span></span>
   </button>
 
   <!-- MODAL: KITCHEN TICKET (PRINTABLE) -->
@@ -1543,6 +1547,9 @@
       if(existing) existing.qty += 1;
       else CART.push({ id: prod.id, name: prod.name, price: getProductPrice(prod, currentOrderType), emoji: prod.emoji, qty: 1, notes: '' });
       renderCart();
+      const itemQty = CART.find(i => i.id === prodId && !i.notes)?.qty || 1;
+      pulseMobileCartButton();
+      showToast(`${prod.name} ditambahkan ke keranjang · jumlah ${itemQty}`, 'success');
     }
 
     function updateCartQty(idx, delta) { CART[idx].qty += delta; if(CART[idx].qty <= 0) CART.splice(idx, 1); renderCart(); }
@@ -1563,6 +1570,15 @@
       panel.classList.toggle('is-open', open);
       backdrop.classList.toggle('is-open', open);
       backdrop.classList.toggle('hidden', !open);
+    }
+
+    function pulseMobileCartButton() {
+      const button = document.getElementById('mobile-cart-toggle');
+      if (!button) return;
+      button.classList.remove('cart-button-bump');
+      void button.offsetWidth;
+      button.classList.add('cart-button-bump');
+      setTimeout(() => button.classList.remove('cart-button-bump'), 500);
     }
 
     function renderPaymentOrderItems() {
@@ -1623,6 +1639,8 @@
       renderPaymentOrderItems();
       const mobileCount = document.getElementById('mobile-cart-count');
       if (mobileCount) mobileCount.textContent = CART.reduce((acc, i) => acc + i.qty, 0);
+      const mobileTotal = document.getElementById('mobile-cart-total');
+      if (mobileTotal) mobileTotal.textContent = `Rp ${CART.reduce((sum, i) => sum + (Number(i.price) || 0) * (Number(i.qty) || 0), 0).toLocaleString('id-ID')}`;
       const checkoutButton = document.querySelector('#payment-modal [onclick="processCheckout()"]');
       if (checkoutButton) {
         // Tombol Bayar nonaktif jika keranjang kosong ATAU pembayaran sedang diproses.
