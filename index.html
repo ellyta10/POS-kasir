@@ -2,7 +2,7 @@
 <html lang="id">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
   <title>Kasir POS Nyonya Terasi Tiban</title>
   <!--
     PERBAIKAN BATCH 1 (Phase A, frontend):
@@ -169,7 +169,12 @@
       }
       #cart-panel.is-open { transform: translateY(0); }
       #cart-panel .mobile-cart-handle { display: block; }
-      #cart-panel > .flex-1 { flex: 0 0 auto; max-height: 32dvh; min-height: 120px; }
+      #cart-panel > .flex-1 { flex: 1 1 0%; max-height: none; min-height: 0; overflow-y: auto; }
+      #cart-items-container { padding: .6rem; gap: .5rem; }
+      #cart-items-container > div { padding: .6rem; gap: .5rem; border-radius: .75rem; }
+      #cart-items-container > div button { min-height: 28px; }
+      #cart-items-container > div input { min-height: 32px; font-size: .7rem; }
+      #cart-items-container > div .text-xl { font-size: 1.15rem; }
       #cart-panel > #payment-panel { max-height: none; overflow: visible; }
       #mobile-cart-backdrop { display: none; }
       #mobile-cart-backdrop.is-open { display: block; }
