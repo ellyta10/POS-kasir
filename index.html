@@ -115,8 +115,8 @@
       .app-header-actions.is-open > button:not(#mobile-header-menu-button) { display: flex; width: 100%; min-width: 0; max-width: 100%; overflow: hidden; justify-content: center; white-space: nowrap; }
       .app-header-actions.is-open > button:not(#mobile-header-menu-button) > span { min-width: 0; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
       .app-header-actions.is-open #header-user-name { max-width: 10rem; }
-      .app-header-actions.is-open #supabase-status-badge { display: flex; grid-column: 1 / -1; width: calc(100% - 44px); justify-content: center; }
-      .app-header-actions.is-open #mobile-header-menu-button { display: flex; position: absolute; top: .6rem; right: .6rem; }
+      .app-header-actions.is-open #supabase-status-badge { display: flex; grid-column: 1; grid-row: 1; width: 100%; justify-content: center; }
+      .app-header-actions.is-open #mobile-header-menu-button { display: flex; position: static; grid-column: 2; grid-row: 1; justify-self: end; align-self: center; }
       .app-header-actions.is-open > button:not(#mobile-header-menu-button) { min-height: 42px; }
       main { height: calc(100dvh - 64px); min-height: 0; flex: 1 1 0%; overflow: hidden; }
       main > section:first-child { min-height: 0; }
