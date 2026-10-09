@@ -69,10 +69,10 @@
       .payment-modal-card .payment-modal-header { padding: .65rem .8rem; min-height: 58px; }
       .payment-modal-card .payment-modal-header h2 { font-size: 1rem; }
       .payment-modal-card .payment-modal-header button { width: 34px; height: 34px; min-height: 34px; }
-      .payment-modal-card > .payment-modal-body { flex: 1 1 0%; padding: .5rem; overflow: hidden; }
-      .payment-modal-card .payment-modal-grid { grid-template-columns: minmax(0,.9fr) minmax(0,1.1fr); gap: .5rem; }
+      .payment-modal-card > .payment-modal-body { flex: 1 1 0%; padding: .5rem; overflow-y: auto !important; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
+      .payment-modal-card .payment-modal-grid { display: flex; flex-direction: column; gap: .75rem; }
       .payment-modal-card .payment-modal-grid > div { min-width: 0; }
-      .payment-modal-card #payment-order-items { max-height: 3.5rem; overflow: hidden; }
+      .payment-modal-card #payment-order-items { max-height: none; overflow: visible; }
       .payment-modal-card #payment-order-items > div { padding: .35rem !important; font-size: .65rem; }
       .payment-modal-card .payment-summary-lines { margin-top: .65rem; padding-top: .65rem; font-size: .68rem; line-height: 1.15; }
       .payment-modal-card .payment-summary-lines > div { min-height: 1.05rem; }
