@@ -1311,7 +1311,7 @@
       text.textContent = message;
       toast.append(icon, text);
       container.appendChild(toast);
-      setTimeout(() => toast.remove(), type === 'success' ? 3000 : 6000);
+      setTimeout(() => toast.remove(), type === 'success' ? 1000 : 3000);
     }
 
     function updateSupabaseStatusUI() {
