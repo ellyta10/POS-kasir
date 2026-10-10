@@ -377,10 +377,10 @@
       <!-- CART ACTIONS: payment details open only when cashier chooses Bayar Kasir -->
       <div id="payment-panel" class="mt-auto p-3.5 border-t border-slate-300 bg-white shrink-0 shadow-2xl">
         <div class="grid grid-cols-2 gap-2">
-          <button onclick="sendToKitchen()" class="py-3 px-2 bg-slate-800 hover:bg-slate-900 text-white rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-md active:scale-95">
-            <i class="fa-solid fa-fire-burner text-amber-400"></i><span>Order Dapur</span>
+          <button onclick="sendToKitchen()" class="py-3 px-2 bg-amber-500 hover:bg-amber-600 text-slate-950 rounded-xl text-xs font-black transition flex items-center justify-center gap-1.5 shadow-md shadow-amber-500/30 active:scale-95">
+            <i class="fa-solid fa-fire-burner text-slate-950"></i><span>Order Dapur</span>
           </button>
-          <button onclick="openPaymentModal()" class="py-3 px-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-extrabold transition flex items-center justify-center gap-1.5 shadow-md shadow-emerald-600/30 active:scale-95">
+          <button onclick="openPaymentModal()" class="py-3 px-2 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl text-xs font-black transition flex items-center justify-center gap-1.5 shadow-md shadow-emerald-700/30 active:scale-95">
             <i class="fa-solid fa-credit-card text-sm"></i><span>Bayar Kasir</span>
           </button>
         </div>
@@ -679,7 +679,7 @@
   </div>
 
   <!-- MODAL: VOID TRANSACTION -->
-  <div id="void-transaction-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[60] flex items-center justify-center hidden p-4"><div class="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden"><div class="bg-red-700 text-white p-4 flex justify-between items-center"><div><h3 class="font-bold text-sm">Void Pesanan</h3><p class="text-[10px] text-red-100">Transaksi tidak dihapus; status menjadi VOID.</p></div><button onclick="closeVoidModal()" class="text-red-100"><i class="fa-solid fa-xmark"></i></button></div><div class="p-5 space-y-3"><div><label class="text-xs font-bold text-slate-600 block mb-1">Pilih transaksi hari ini</label><select id="void-today-select" onchange="selectVoidTransaction(this.value)" class="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm"><option value="">Memuat transaksi hari ini...</option></select><p id="void-today-status" class="mt-1 text-[10px] text-slate-400"></p></div><div><label class="text-xs font-bold text-slate-600 block mb-1">Nomor Transaksi</label><input id="void-trx-id" placeholder="TRX-123456" class="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm font-mono"></div><div><label class="text-xs font-bold text-slate-600 block mb-1">Alasan Void</label><textarea id="void-reason" rows="3" placeholder="Alasan pembatalan pesanan" class="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm"></textarea></div><p class="text-[10px] text-slate-400">Kasir hanya dapat void transaksi hari ini. Admin dapat void transaksi lama. Semua void tercatat di audit log.</p></div><div class="p-4 bg-slate-50 border-t flex justify-end gap-2"><button onclick="closeVoidModal()" class="px-4 py-2 bg-slate-200 text-slate-700 text-xs font-bold rounded-xl">Batal</button><button onclick="voidTransaction()" class="px-4 py-2 bg-red-600 text-white text-xs font-bold rounded-xl">Konfirmasi Void</button></div></div></div>
+  <div id="void-transaction-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[60] flex items-center justify-center hidden p-4"><div class="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden"><div class="bg-red-700 text-white p-4 flex justify-between items-center"><div><h3 class="font-bold text-sm">Void Pesanan</h3><p class="text-[10px] text-red-100">Transaksi tidak dihapus; status menjadi VOID.</p></div><button onclick="closeVoidModal()" class="text-red-100"><i class="fa-solid fa-xmark"></i></button></div><div class="p-5 space-y-3"><div><div class="flex items-center justify-between gap-2 mb-1"><label class="text-xs font-bold text-slate-600">Tanggal transaksi</label><span id="void-date-policy" class="text-[10px] text-slate-400"></span></div><input id="void-date-picker" type="date" onchange="loadVoidableTransactions()" class="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm"></div><div><label class="text-xs font-bold text-slate-600 block mb-1">Pilih transaksi pada tanggal tersebut</label><select id="void-today-select" onchange="selectVoidTransaction(this.value)" class="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm"><option value="">Memuat transaksi...</option></select><p id="void-today-status" class="mt-1 text-[10px] text-slate-400"></p></div><div><label class="text-xs font-bold text-slate-600 block mb-1">Nomor Transaksi</label><input id="void-trx-id" placeholder="TRX-123456" class="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm font-mono"></div><div><label class="text-xs font-bold text-slate-600 block mb-1">Alasan Void</label><textarea id="void-reason" rows="3" placeholder="Alasan pembatalan pesanan" class="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm"></textarea></div><p class="text-[10px] text-slate-400">Kasir hanya dapat void transaksi hari ini. Admin dapat memilih tanggal dan void transaksi lama. Semua void tercatat di audit log.</p></div><div class="p-4 bg-slate-50 border-t flex justify-end gap-2"><button onclick="closeVoidModal()" class="px-4 py-2 bg-slate-200 text-slate-700 text-xs font-bold rounded-xl">Batal</button><button onclick="voidTransaction()" class="px-4 py-2 bg-red-600 text-white text-xs font-bold rounded-xl">Konfirmasi Void</button></div></div></div>
 
   <!-- MODAL: MANAGEMENT / ADMIN -->
   <div id="management-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
@@ -1303,9 +1303,10 @@
 
     // Toast memakai textContent (aman dari HTML di dalam pesan). Pesan error tampil lebih lama.
     function showToast(message, type = 'success') {
+      const isCartToast = type === 'cart';
+      if (isCartToast && !window.matchMedia?.('(max-width: 767px)').matches) return;
       const container = document.getElementById('toast-container');
       const toast = document.createElement('div');
-      const isCartToast = type === 'cart';
       const bgCol = type === 'success' || isCartToast ? 'bg-slate-900 text-white' : 'bg-red-600 text-white';
       toast.className = `${bgCol} ${isCartToast ? 'cart-toast' : ''} px-4 py-2.5 rounded-xl shadow-xl text-xs font-bold pointer-events-auto flex items-center gap-2`;
       const icon = document.createElement('i');
@@ -1607,8 +1608,10 @@
       if (!modal) return;
       const context = document.getElementById('payment-modal-context');
       if (context) context.textContent = `${currentOrderType === 'Dine In' ? `Meja ${currentTable}` : currentOrderType} · Periksa total dan metode pembayaran sebelum melanjutkan.`;
+      setCashAmount(document.getElementById('cash-given-input'), 0);
       renderPaymentOrderItems();
       calculateGrandTotal();
+      calculateCashChange();
       modal.classList.remove('hidden');
       modal.classList.add('flex');
       if (currentPaymentMethod === 'Cash') setPaymentMethod('Cash');
@@ -1992,7 +1995,7 @@
       document.getElementById('receipt-modal').classList.remove('hidden');
       if (printerConfig.autoReceipt) setTimeout(printReceipt, 350);
     }
-    function closeReceiptModal() { document.getElementById('receipt-modal').classList.add('hidden'); CART = []; loadedActiveBillTable = null; checkoutAttempt = null; renderCart(); }
+    function closeReceiptModal() { document.getElementById('receipt-modal').classList.add('hidden'); CART = []; loadedActiveBillTable = null; checkoutAttempt = null; setCashAmount(document.getElementById('cash-given-input'), 0); toggleMobileCart(false); renderCart(); }
 
     function openUserSwitchModal() {
       const email = document.getElementById('account-modal-email');
@@ -2281,6 +2284,11 @@
       if (!currentAuthSession) { document.body.classList.add('auth-locked'); return; }
       document.getElementById('void-trx-id').value = '';
       document.getElementById('void-reason').value = '';
+      const today = localDateString(new Date());
+      const datePicker = document.getElementById('void-date-picker');
+      const policy = document.getElementById('void-date-policy');
+      if (datePicker) { datePicker.value = today; datePicker.disabled = currentUserRole === 'cashier'; datePicker.classList.toggle('opacity-60', currentUserRole === 'cashier'); }
+      if (policy) policy.textContent = currentUserRole === 'cashier' ? 'Kasir: hari ini saja' : 'Admin: pilih tanggal';
       document.getElementById('void-transaction-modal').classList.remove('hidden');
       loadVoidableTransactions();
     }
@@ -2289,16 +2297,19 @@
       const select = document.getElementById('void-today-select');
       const status = document.getElementById('void-today-status');
       if (!select || !supabaseClient) return;
-      select.replaceChildren(new Option('Memuat transaksi hari ini...', ''));
+      const today = localDateString(new Date());
+      const picker = document.getElementById('void-date-picker');
+      const requestedDate = currentUserRole === 'cashier' ? today : (picker?.value || today);
+      select.replaceChildren(new Option('Memuat transaksi...', ''));
       try {
-        const { data, error } = await supabaseClient.rpc('list_voidable_transactions', { p_date: localDateString(new Date()) });
+        const { data, error } = await supabaseClient.rpc('list_voidable_transactions', { p_date: requestedDate });
         if (error) throw error;
-        select.replaceChildren(new Option(data?.length ? 'Pilih nomor transaksi...' : 'Tidak ada transaksi selesai hari ini', ''));
+        select.replaceChildren(new Option(data?.length ? 'Pilih nomor transaksi...' : 'Tidak ada transaksi selesai pada tanggal ini', ''));
         (data || []).forEach(row => select.add(new Option(`${row.trx_id} · ${reportMoney(row.grand_total)} · ${displayCashierRole(row.cashier)}`, row.trx_id)));
-        if (status) status.textContent = data?.length ? `${data.length} transaksi selesai hari ini` : 'Nomor transaksi tetap dapat diisi manual.';
+        if (status) status.textContent = data?.length ? `${data.length} transaksi selesai · ${requestedDate}` : 'Nomor transaksi tetap dapat diisi manual.';
       } catch (error) {
         select.replaceChildren(new Option('Daftar transaksi tidak tersedia', ''));
-        if (status) status.textContent = 'Isi nomor transaksi secara manual.';
+        if (status) status.textContent = currentUserRole === 'cashier' ? 'Kasir hanya dapat memilih transaksi hari ini.' : 'Isi nomor transaksi secara manual.';
         console.error('Gagal memuat transaksi void:', error);
       }
     }
