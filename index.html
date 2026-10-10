@@ -112,6 +112,7 @@
       }
       #toast-container { left: 1rem; right: 1rem; bottom: calc(4.5rem + env(safe-area-inset-bottom)); align-items: center; gap: .35rem; }
       #toast-container > * { max-width: min(82vw, 22rem); padding: .45rem .65rem; border-radius: .7rem; opacity: .86; font-size: .68rem; line-height: 1.15; overflow: hidden; text-overflow: ellipsis; box-shadow: 0 8px 18px rgb(15 23 42 / .16); }
+      #toast-container > .cart-toast { max-width: 68vw; padding: .32rem .48rem; opacity: .74; font-size: .6rem; gap: .3rem; }
       #mobile-cart-toggle .cart-total-label { opacity: .85; font-weight: 700; }
     }
     @media (max-width: 380px) {
@@ -678,7 +679,7 @@
   </div>
 
   <!-- MODAL: VOID TRANSACTION -->
-  <div id="void-transaction-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[60] flex items-center justify-center hidden p-4"><div class="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden"><div class="bg-red-700 text-white p-4 flex justify-between items-center"><div><h3 class="font-bold text-sm">Void Pesanan</h3><p class="text-[10px] text-red-100">Transaksi tidak dihapus; status menjadi VOID.</p></div><button onclick="closeVoidModal()" class="text-red-100"><i class="fa-solid fa-xmark"></i></button></div><div class="p-5 space-y-3"><div><label class="text-xs font-bold text-slate-600 block mb-1">Nomor Transaksi</label><input id="void-trx-id" placeholder="TRX-123456" class="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm font-mono"></div><div><label class="text-xs font-bold text-slate-600 block mb-1">Alasan Void</label><textarea id="void-reason" rows="3" placeholder="Alasan pembatalan pesanan" class="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm"></textarea></div><p class="text-[10px] text-slate-400">Admin dan kasir dapat melakukan void. Setiap void tercatat di audit log.</p></div><div class="p-4 bg-slate-50 border-t flex justify-end gap-2"><button onclick="closeVoidModal()" class="px-4 py-2 bg-slate-200 text-slate-700 text-xs font-bold rounded-xl">Batal</button><button onclick="voidTransaction()" class="px-4 py-2 bg-red-600 text-white text-xs font-bold rounded-xl">Konfirmasi Void</button></div></div></div>
+  <div id="void-transaction-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[60] flex items-center justify-center hidden p-4"><div class="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden"><div class="bg-red-700 text-white p-4 flex justify-between items-center"><div><h3 class="font-bold text-sm">Void Pesanan</h3><p class="text-[10px] text-red-100">Transaksi tidak dihapus; status menjadi VOID.</p></div><button onclick="closeVoidModal()" class="text-red-100"><i class="fa-solid fa-xmark"></i></button></div><div class="p-5 space-y-3"><div><label class="text-xs font-bold text-slate-600 block mb-1">Pilih transaksi hari ini</label><select id="void-today-select" onchange="selectVoidTransaction(this.value)" class="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm"><option value="">Memuat transaksi hari ini...</option></select><p id="void-today-status" class="mt-1 text-[10px] text-slate-400"></p></div><div><label class="text-xs font-bold text-slate-600 block mb-1">Nomor Transaksi</label><input id="void-trx-id" placeholder="TRX-123456" class="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm font-mono"></div><div><label class="text-xs font-bold text-slate-600 block mb-1">Alasan Void</label><textarea id="void-reason" rows="3" placeholder="Alasan pembatalan pesanan" class="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm"></textarea></div><p class="text-[10px] text-slate-400">Admin dan kasir dapat melakukan void. Setiap void tercatat di audit log.</p></div><div class="p-4 bg-slate-50 border-t flex justify-end gap-2"><button onclick="closeVoidModal()" class="px-4 py-2 bg-slate-200 text-slate-700 text-xs font-bold rounded-xl">Batal</button><button onclick="voidTransaction()" class="px-4 py-2 bg-red-600 text-white text-xs font-bold rounded-xl">Konfirmasi Void</button></div></div></div>
 
   <!-- MODAL: MANAGEMENT / ADMIN -->
   <div id="management-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
@@ -1259,6 +1260,7 @@
         await supabaseClient.auth.signOut();
         return;
       }
+      currentUser = { name: currentUserRole === 'admin' ? 'Admin' : 'Kasir', role: currentUserRole === 'admin' ? 'Admin' : 'Kasir' };
       document.body.classList.remove('auth-locked');
       document.body.classList.add('auth-ready');
       const userEmail = document.getElementById('auth-user-email');
@@ -1303,15 +1305,17 @@
     function showToast(message, type = 'success') {
       const container = document.getElementById('toast-container');
       const toast = document.createElement('div');
-      const bgCol = type === 'success' ? 'bg-slate-900 text-white' : 'bg-red-600 text-white';
-      toast.className = `${bgCol} px-4 py-2.5 rounded-xl shadow-xl text-xs font-bold pointer-events-auto flex items-center gap-2`;
+      const isCartToast = type === 'cart';
+      const bgCol = type === 'success' || isCartToast ? 'bg-slate-900 text-white' : 'bg-red-600 text-white';
+      toast.className = `${bgCol} ${isCartToast ? 'cart-toast' : ''} px-4 py-2.5 rounded-xl shadow-xl text-xs font-bold pointer-events-auto flex items-center gap-2`;
       const icon = document.createElement('i');
-      icon.className = `fa-solid ${type === 'success' ? 'fa-circle-check text-emerald-400' : 'fa-triangle-exclamation'}`;
+      icon.className = `fa-solid ${type === 'success' || isCartToast ? 'fa-circle-check text-emerald-400' : 'fa-triangle-exclamation'}`;
       const text = document.createElement('span');
       text.textContent = message;
       toast.append(icon, text);
       container.appendChild(toast);
-      setTimeout(() => toast.remove(), type === 'success' ? 1000 : 3000);
+      const duration = isCartToast && window.matchMedia?.('(max-width: 767px)').matches ? 500 : (type === 'success' ? 1000 : 3000);
+      setTimeout(() => toast.remove(), duration);
     }
 
     function updateSupabaseStatusUI() {
@@ -1550,7 +1554,7 @@
       renderCart();
       const itemQty = CART.find(i => i.id === prodId && !i.notes)?.qty || 1;
       pulseMobileCartButton();
-      showToast(`${prod.name} ditambahkan ke keranjang · jumlah ${itemQty}`, 'success');
+      showToast(`${prod.name} ditambahkan · jumlah ${itemQty}`, 'cart');
     }
 
     function updateCartQty(idx, delta) { CART[idx].qty += delta; if(CART[idx].qty <= 0) CART.splice(idx, 1); renderCart(); }
@@ -2012,7 +2016,7 @@
         showToast('Akses khusus admin. Akun kasir tidak dapat membuka menu ini.', 'error');
         return;
       }
-      currentUser = { name: currentAuthSession.user.email || 'Admin', role: 'Admin' };
+      currentUser = { name: 'Admin', role: 'Admin' };
       document.getElementById('header-user-name').textContent = 'Admin';
       document.getElementById('header-user-role-badge').textContent = 'Admin';
       if (action === 'management') openManagementModal();
@@ -2278,8 +2282,29 @@
       document.getElementById('void-trx-id').value = '';
       document.getElementById('void-reason').value = '';
       document.getElementById('void-transaction-modal').classList.remove('hidden');
+      loadVoidableTransactions();
     }
     function closeVoidModal() { document.getElementById('void-transaction-modal').classList.add('hidden'); }
+    async function loadVoidableTransactions() {
+      const select = document.getElementById('void-today-select');
+      const status = document.getElementById('void-today-status');
+      if (!select || !supabaseClient) return;
+      select.replaceChildren(new Option('Memuat transaksi hari ini...', ''));
+      try {
+        const { data, error } = await supabaseClient.rpc('list_voidable_transactions', { p_date: localDateString(new Date()) });
+        if (error) throw error;
+        select.replaceChildren(new Option(data?.length ? 'Pilih nomor transaksi...' : 'Tidak ada transaksi selesai hari ini', ''));
+        (data || []).forEach(row => select.add(new Option(`${row.trx_id} · ${reportMoney(row.grand_total)} · ${displayCashierRole(row.cashier)}`, row.trx_id)));
+        if (status) status.textContent = data?.length ? `${data.length} transaksi selesai hari ini` : 'Nomor transaksi tetap dapat diisi manual.';
+      } catch (error) {
+        select.replaceChildren(new Option('Daftar transaksi tidak tersedia', ''));
+        if (status) status.textContent = 'Isi nomor transaksi secara manual.';
+        console.error('Gagal memuat transaksi void:', error);
+      }
+    }
+    function selectVoidTransaction(trxId) {
+      if (trxId) document.getElementById('void-trx-id').value = trxId;
+    }
     async function logAudit(action, targetType, targetId, details = {}) {
       if (!supabaseClient || !currentAuthSession) return;
       const { error } = await supabaseClient.from('audit_logs').insert([{
@@ -2389,8 +2414,9 @@
     }
     function renderReportProducts() { const map = {}; normalizedReportItems(REPORT_ROWS).forEach(item => { const key = item.name; if (!map[key]) map[key] = { name: key, qty: 0, revenue: 0 }; map[key].qty += item.qty; map[key].revenue += item.revenue; }); const sort = document.getElementById('report-product-sort')?.value || 'qty'; const rows = Object.values(map).sort((a,b) => sort === 'revenue' ? b.revenue - a.revenue : b.qty - a.qty); document.getElementById('rep-products-body').innerHTML = rows.length ? rows.map((row,i) => `<tr><td class="p-2 font-black text-emerald-600">${i+1}</td><td class="p-2 font-bold">${escapeHtml(row.name)}</td><td class="p-2 text-right font-mono">${row.qty.toLocaleString('id-ID')}</td><td class="p-2 text-right font-mono">${reportMoney(row.revenue)}</td><td class="p-2 text-right font-mono">${reportMoney(row.qty ? row.revenue / row.qty : 0)}</td></tr>`).join('') : '<tr><td colspan="5" class="p-4 text-center text-slate-400">Belum ada data produk.</td></tr>'; const top = rows.slice(0,5); document.getElementById('rep-top-products-summary').innerHTML = top.length ? top.map((row,i) => `<div class="flex justify-between py-1"><span><b>${i+1}.</b> ${escapeHtml(row.name)}</span><b>${row.qty} item</b></div>`).join('') : 'Belum ada data produk.'; }
     function loadReportProducts() { renderReportProducts(); }
-    function renderReportVoids() { const rows = REPORT_ROWS.filter(row => row.status === 'voided'); document.getElementById('rep-void-history-body').innerHTML = rows.length ? rows.map(row => `<tr><td class="p-2 font-mono font-bold">${escapeHtml(row.trx_id)}</td><td class="p-2">${escapeHtml(row.date || '')}</td><td class="p-2">${escapeHtml(row.cashier || '-')}</td><td class="p-2 font-mono">${reportMoney(row.grand_total)}</td><td class="p-2">${escapeHtml(row.void_reason || '-')}</td><td class="p-2">${escapeHtml(row.voided_at || '-')}</td></tr>`).join('') : '<tr><td colspan="6" class="p-4 text-center text-slate-400">Belum ada transaksi void.</td></tr>'; }
-    function renderReportTransactions() { document.getElementById('rep-transactions-body').innerHTML = REPORT_ROWS.length ? REPORT_ROWS.map(row => `<tr><td class="p-2 font-mono font-bold">${escapeHtml(row.trx_id)}</td><td class="p-2">${escapeHtml(row.date || '')} ${escapeHtml(row.time || '')}</td><td class="p-2">${escapeHtml(row.cashier || '-')}</td><td class="p-2">${escapeHtml(row.order_type || '-')}</td><td class="p-2">${escapeHtml(row.payment_method || '-')}</td><td class="p-2 text-right font-mono">${reportMoney(row.grand_total)}</td><td class="p-2"><span class="px-2 py-1 rounded-full text-[10px] font-bold ${row.status === 'voided' ? 'bg-red-100 text-red-700' : 'bg-emerald-100 text-emerald-700'}">${row.status === 'voided' ? 'Void' : 'Selesai'}</span></td></tr>`).join('') : '<tr><td colspan="7" class="p-4 text-center text-slate-400">Belum ada transaksi.</td></tr>'; }
+    function displayCashierRole(value) { const normalized = String(value || '').toLowerCase(); return normalized.includes('admin') || normalized.includes('owner') ? 'Admin' : 'Kasir'; }
+    function renderReportVoids() { const rows = REPORT_ROWS.filter(row => row.status === 'voided'); document.getElementById('rep-void-history-body').innerHTML = rows.length ? rows.map(row => `<tr><td class="p-2 font-mono font-bold">${escapeHtml(row.trx_id)}</td><td class="p-2">${escapeHtml(row.date || '')}</td><td class="p-2">${escapeHtml(displayCashierRole(row.cashier))}</td><td class="p-2 font-mono">${reportMoney(row.grand_total)}</td><td class="p-2">${escapeHtml(row.void_reason || '-')}</td><td class="p-2">${escapeHtml(row.voided_at || '-')}</td></tr>`).join('') : '<tr><td colspan="6" class="p-4 text-center text-slate-400">Belum ada transaksi void.</td></tr>'; }
+    function renderReportTransactions() { document.getElementById('rep-transactions-body').innerHTML = REPORT_ROWS.length ? REPORT_ROWS.map(row => `<tr><td class="p-2 font-mono font-bold">${escapeHtml(row.trx_id)}</td><td class="p-2">${escapeHtml(row.date || '')} ${escapeHtml(row.time || '')}</td><td class="p-2">${escapeHtml(displayCashierRole(row.cashier))}</td><td class="p-2">${escapeHtml(row.order_type || '-')}</td><td class="p-2">${escapeHtml(row.payment_method || '-')}</td><td class="p-2 text-right font-mono">${reportMoney(row.grand_total)}</td><td class="p-2"><span class="px-2 py-1 rounded-full text-[10px] font-bold ${row.status === 'voided' ? 'bg-red-100 text-red-700' : 'bg-emerald-100 text-emerald-700'}">${row.status === 'voided' ? 'Void' : 'Selesai'}</span></td></tr>`).join('') : '<tr><td colspan="7" class="p-4 text-center text-slate-400">Belum ada transaksi.</td></tr>'; }
     function renderReportShifts() { document.getElementById('rep-shifts-body').innerHTML = `<table class="w-full text-left text-xs"><thead><tr class="bg-slate-100 uppercase text-[10px]"><th class="p-2">Status</th><th class="p-2">Buka</th><th class="p-2">Tutup</th><th class="p-2 text-right">Kas awal</th><th class="p-2 text-right">Selisih</th></tr></thead><tbody>${REPORT_SHIFTS.length ? REPORT_SHIFTS.map(row => `<tr class="border-t"><td class="p-2">${row.status === 'open' ? '<span class="text-emerald-600 font-bold">Aktif</span>' : '<span class="text-slate-500">Ditutup</span>'}</td><td class="p-2">${new Date(row.opened_at).toLocaleString('id-ID')}</td><td class="p-2">${row.closed_at ? new Date(row.closed_at).toLocaleString('id-ID') : '-'}</td><td class="p-2 text-right font-mono">${reportMoney(row.opening_cash)}</td><td class="p-2 text-right font-mono">${row.difference == null ? '-' : reportMoney(row.difference)}</td></tr>`).join('') : '<tr><td colspan="5" class="p-4 text-center text-slate-400">Belum ada shift.</td></tr>'}</tbody></table>`; }
     function renderReportInventory() { const total = REPORT_MATERIALS.reduce((sum,row) => sum + Number(row.stock || 0) * Number(row.cost || 0), 0); document.getElementById('rep-inventory-val').textContent = reportMoney(total); const byType = {}; REPORT_MOVEMENTS.forEach(row => byType[row.movement_type] = (byType[row.movement_type] || 0) + Number(row.quantity || 0)); document.getElementById('rep-inventory-body').innerHTML = `<table class="w-full text-left text-xs"><thead><tr class="bg-slate-100 uppercase text-[10px]"><th class="p-2">Bahan</th><th class="p-2 text-right">Stok</th><th class="p-2 text-right">Nilai</th><th class="p-2">Status</th></tr></thead><tbody>${REPORT_MATERIALS.map(row => `<tr class="border-t"><td class="p-2 font-bold">${escapeHtml(row.name)}</td><td class="p-2 text-right font-mono">${Number(row.stock || 0).toLocaleString('id-ID')} ${escapeHtml(row.unit || '')}</td><td class="p-2 text-right font-mono">${reportMoney(Number(row.stock || 0) * Number(row.cost || 0))}</td><td class="p-2">${Number(row.stock || 0) <= 10 ? '<span class="text-orange-600 font-bold">Restock</span>' : '<span class="text-emerald-600 font-bold">Aman</span>'}</td></tr>`).join('')}</tbody></table><div class="grid grid-cols-2 md:grid-cols-4 gap-2 mt-3 text-[10px]">${Object.entries(byType).map(([type,value]) => `<div class="bg-slate-50 rounded-xl p-2"><b>${escapeHtml(type)}</b><br>${Number(value).toLocaleString('id-ID')}</div>`).join('')}</div>`; }
     async function openReportsModal() { document.getElementById('reports-modal').classList.remove('hidden'); try { await loadReportsFromSupabase(); } catch (error) { console.error(error); showToast('Laporan gagal dimuat: ' + error.message, 'error'); } }
@@ -2399,7 +2425,7 @@
     function csvDownload(filename, rows) { const esc = value => `"${String(value ?? '').replace(/"/g, '""')}"`; const blob = new Blob(['\ufeff' + rows.map(row => row.map(esc).join(',')).join('\n')], { type: 'text/csv;charset=utf-8;' }); const url = URL.createObjectURL(blob); const link = document.createElement('a'); link.href = url; link.download = filename; link.click(); URL.revokeObjectURL(url); }
     function exportReportProductsCSV() { const map = {}; normalizedReportItems(REPORT_ROWS).forEach(item => { if (!map[item.name]) map[item.name] = { name: item.name, qty: 0, revenue: 0 }; map[item.name].qty += item.qty; map[item.name].revenue += item.revenue; }); csvDownload(`laporan-produk-${localDateString(new Date())}.csv`, [['Ranking','Menu','Qty Terjual','Omzet','Harga Rata-rata'], ...Object.values(map).sort((a,b) => b.qty-a.qty).map((row,i) => [i+1,row.name,row.qty,row.revenue,row.qty ? row.revenue/row.qty : 0])]); showToast('Export produk berhasil', 'success'); }
     function exportReportVoidsCSV() { csvDownload(`laporan-void-${localDateString(new Date())}.csv`, [['Transaksi','Tanggal','Kasir','Nilai','Alasan','Waktu Void'], ...REPORT_ROWS.filter(row => row.status === 'voided').map(row => [row.trx_id,row.date,row.cashier,row.grand_total,row.void_reason,row.voided_at])]); showToast('Export void berhasil', 'success'); }
-    async function exportHistoryCSV() { if (!REPORT_ROWS.length) { try { await loadReportsFromSupabase(); } catch (error) { return showToast('Gagal memuat laporan: ' + error.message, 'error'); } } csvDownload(`laporan-transaksi-${localDateString(new Date())}.csv`, [['Transaksi','Tanggal','Waktu','Order Type','Metode Pembayaran','Subtotal','Pajak','Total Bayar','Status','Alasan Void','Kasir'], ...REPORT_ROWS.map(row => [row.trx_id,row.date,row.time,row.order_type,row.payment_method,row.subtotal,row.tax,row.grand_total,row.status,row.void_reason,row.cashier])]); showToast('Export transaksi berhasil', 'success'); }
+    async function exportHistoryCSV() { if (!REPORT_ROWS.length) { try { await loadReportsFromSupabase(); } catch (error) { return showToast('Gagal memuat laporan: ' + error.message, 'error'); } } csvDownload(`laporan-transaksi-${localDateString(new Date())}.csv`, [['Transaksi','Tanggal','Waktu','Order Type','Metode Pembayaran','Subtotal','Pajak','Total Bayar','Status','Alasan Void','Kasir'], ...REPORT_ROWS.map(row => [row.trx_id,row.date,row.time,row.order_type,row.payment_method,row.subtotal,row.tax,row.grand_total,row.status,row.void_reason,displayCashierRole(row.cashier)])]); showToast('Export transaksi berhasil', 'success'); }
 
     async function loadCurrentCashSession() {
       if (!supabaseClient || !currentAuthSession) return;
