@@ -193,6 +193,26 @@
       #cart-panel .mobile-cart-handle, #mobile-cart-backdrop, #mobile-cart-toggle { display: none !important; }
     }
 
+    #void-transaction-modal > div {
+      display: flex;
+      flex-direction: column;
+      max-height: calc(100dvh - 1rem);
+    }
+    #void-transaction-modal > div > div:nth-child(2) {
+      min-height: 0;
+      flex: 1 1 auto;
+      overflow-y: auto;
+      overscroll-behavior: contain;
+    }
+
+    #void-date-picker {
+      display: block;
+      width: 100%;
+      min-width: 0;
+      max-width: 100%;
+      box-sizing: border-box;
+    }
+
     body.auth-locked > *:not(#auth-gate) { display: none !important; }
     body.auth-ready #auth-gate { display: none !important; }
 
