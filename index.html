@@ -203,15 +203,25 @@
       flex: 1 1 auto;
       overflow-y: auto;
       overscroll-behavior: contain;
+      padding: 1rem;
+      display: flex;
+      flex-direction: column;
+      gap: .65rem;
     }
 
     #void-date-picker {
       display: block;
-      width: 100%;
+      width: min(100%, 14rem);
       min-width: 0;
-      max-width: 100%;
+      max-width: 14rem;
       box-sizing: border-box;
+      min-height: 42px;
+      padding-top: .5rem;
+      padding-bottom: .5rem;
     }
+
+    #void-transaction-modal #void-reason { min-height: 4.5rem; }
+    #void-transaction-modal > div > div:last-child { padding: .75rem 1rem; }
 
     body.auth-locked > *:not(#auth-gate) { display: none !important; }
     body.auth-ready #auth-gate { display: none !important; }
