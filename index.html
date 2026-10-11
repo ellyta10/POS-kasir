@@ -193,6 +193,19 @@
       #cart-panel .mobile-cart-handle, #mobile-cart-backdrop, #mobile-cart-toggle { display: none !important; }
     }
 
+    @media (min-width: 768px) {
+      #toast-container {
+        left: 50%;
+        right: auto;
+        bottom: 1.25rem;
+        width: max-content;
+        max-width: calc(100vw - 2rem);
+        align-items: center;
+        transform: translateX(-50%);
+      }
+      #toast-container > * { max-width: min(calc(100vw - 2rem), 30rem); }
+    }
+
     #void-transaction-modal > div {
       display: flex;
       flex-direction: column;
