@@ -649,7 +649,7 @@
         <div class="grid grid-cols-2 gap-3 text-xs">
           <div class="bg-slate-50 p-3 rounded-xl border border-slate-200">
             <span class="text-slate-500 block">Kas Awal</span>
-            <span class="font-mono font-bold text-slate-800 text-sm">Rp 500.000</span>
+            <span id="shift-opening-cash-display" class="font-mono font-bold text-slate-800 text-sm">—</span>
           </div>
           <div class="bg-slate-50 p-3 rounded-xl border border-slate-200">
             <span class="text-slate-500 block">Omset Tunai</span>
@@ -2496,10 +2496,14 @@
         label.textContent = 'SHIFT AKTIF (Buka)';
         start.textContent = 'Mulai: ' + new Date(CURRENT_CASH_SESSION.opened_at).toLocaleString('id-ID');
         panel.className = 'bg-emerald-50 border border-emerald-200 p-3.5 rounded-xl flex items-center justify-between gap-3';
+        const openingCashDisplay = document.getElementById('shift-opening-cash-display');
+        if (openingCashDisplay) openingCashDisplay.textContent = `Rp ${Number(CURRENT_CASH_SESSION.opening_cash || 0).toLocaleString('id-ID')}`;
       } else {
         label.textContent = 'SHIFT BELUM DIBUKA';
         start.textContent = 'Checkout dikunci';
         panel.className = 'bg-red-50 border border-red-200 p-3.5 rounded-xl flex items-center justify-between gap-3';
+        const openingCashDisplay = document.getElementById('shift-opening-cash-display');
+        if (openingCashDisplay) openingCashDisplay.textContent = '—';
       }
     }
     async function startCashSession() {
@@ -2527,7 +2531,7 @@
       document.getElementById('shift-cash-total').textContent = `Rp ${Number((CURRENT_CASH_SESSION?.opening_cash || 0) + shiftSummary.cash).toLocaleString('id-ID')}`;
       document.getElementById('shift-noncash-total').textContent = `Rp ${Math.max(0, shiftSummary.total - shiftSummary.cash).toLocaleString('id-ID')}`;
       document.getElementById('shift-trx-count').textContent = shiftSummary.count.toLocaleString('id-ID');
-      document.getElementById('shift-opening-cash').value = CURRENT_CASH_SESSION?.opening_cash || 500000;
+      document.getElementById('shift-opening-cash').value = CURRENT_CASH_SESSION ? Number(CURRENT_CASH_SESSION.opening_cash) : 500000;
       renderCashSessionUI();
       document.getElementById('shift-modal').classList.remove('hidden');
     }
