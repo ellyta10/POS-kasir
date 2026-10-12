@@ -236,6 +236,30 @@
     #void-transaction-modal #void-reason { min-height: 4.5rem; }
     #void-transaction-modal > div > div:last-child { padding: .75rem 1rem; }
 
+    .receipt-item-row {
+      display: flex;
+      flex-wrap: nowrap;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 4px;
+      width: 100%;
+      white-space: nowrap;
+      font-size: 9px;
+      line-height: 1.2;
+    }
+    .receipt-item-name {
+      flex: 1 1 auto;
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .receipt-item-amount {
+      flex: 0 0 auto;
+      white-space: nowrap;
+      text-align: right;
+    }
+
     body.auth-locked > *:not(#auth-gate) { display: none !important; }
     body.auth-ready #auth-gate { display: none !important; }
 
@@ -2017,7 +2041,7 @@
           <span>${currentOrderType === 'Dine In' ? `Meja: ${escapeHtml(currentTable)}` : `Channel: ${escapeHtml(currentOrderType)}`} | Kasir: ${escapeHtml(currentUser.name)}</span>
         </div>
         <div class="py-2 border-y border-dashed space-y-1">
-          ${trx.items.map(i=>`<div class="flex justify-between"><span>${Number(i.qty) || 0}x ${escapeHtml(i.name)}</span><span>Rp ${((Number(i.price) || 0)*(Number(i.qty) || 0)).toLocaleString('id-ID')}</span></div>`).join('')}
+          ${trx.items.map(i=>`<div class="receipt-item-row"><span class="receipt-item-name" title="${Number(i.qty) || 0}x ${escapeHtml(i.name)}">${Number(i.qty) || 0}x ${escapeHtml(i.name)}</span><span class="receipt-item-amount">Rp ${((Number(i.price) || 0)*(Number(i.qty) || 0)).toLocaleString('id-ID')}</span></div>`).join('')}
         </div>
         <div class="space-y-0.5 text-right font-bold text-[11px]">
           <div>Subtotal: Rp ${trx.subtotal.toLocaleString('id-ID')}</div>
