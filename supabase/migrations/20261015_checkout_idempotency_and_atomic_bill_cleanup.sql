@@ -212,7 +212,7 @@ begin
     case when p_order_type = 'Dine In' then trim(p_table_name) else '-' end,
     p_order_type, coalesce(auth.jwt()->>'email', ''), v_subtotal, v_tax,
     v_service, v_discount, v_member_discount, v_grand_total, p_payment_method,
-    v_items, 'completed', v_fingerprint
+    v_transaction_items, 'completed', v_fingerprint
   ) returning id into v_transaction_id;
 
   for v_item in select value from jsonb_array_elements(v_items) as normalized_items(value) loop
