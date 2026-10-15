@@ -2019,13 +2019,9 @@
       trx.cashGiven = num(sr.cash_given, trx.cashGiven);
       trx.change = num(sr.change, trx.change);
 
-      try {
-        if (currentOrderType === 'Dine In' && ACTIVE_BILLS[currentTable]) {
-          const { error: billError } = await window.POSActiveBillsRepository.remove(supabaseClient, currentTable);
-          if (billError) showToast('Pembayaran tersimpan, tetapi bill aktif belum terhapus: ' + billError.message, 'error');
-          delete ACTIVE_BILLS[currentTable]; safeLocalSet('nyonya_active_bills', ACTIVE_BILLS); updateActiveBillsCount(); renderTableOptions();
-        }
-      } catch (e) { console.warn('Gagal membersihkan bill aktif setelah checkout:', e); }
+      // Active bill cleanup is performed atomically inside checkout_atomic.
+      // Do not issue a second client-side delete here: another cashier may have
+      // created a new bill for the same table after checkout committed.
       try { await loadRawMaterialsFromSupabase(); } catch (e) { console.warn('Gagal memuat ulang stok bahan:', e); }
 
       closePaymentModal(true);
