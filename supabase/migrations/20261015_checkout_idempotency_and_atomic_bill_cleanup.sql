@@ -233,7 +233,24 @@ begin
 
   -- Keep active bill cleanup in the same transaction as sale creation.
   if p_order_type = 'Dine In' then
-    delete from public.active_bills where table_name = trim(p_table_name);
+    -- Delete only the exact bill contents that were checked out. If another cashier
+    -- has since changed the table's bill, preserve that newer order for reconciliation.
+    delete from public.active_bills ab
+    where ab.table_name = trim(p_table_name)
+      and (
+        select jsonb_agg(
+          jsonb_build_object('id', grouped.product_id, 'qty', grouped.total_qty)
+          order by grouped.product_id
+        )
+        from (
+          select trim(value->>'id') as product_id,
+                 sum((value->>'qty')::numeric) as total_qty
+          from jsonb_array_elements(
+            case when jsonb_typeof(ab.items) = 'array' then ab.items else '[]'::jsonb end
+          ) as bill_items(value)
+          group by trim(value->>'id')
+        ) grouped
+      ) = v_items;
   end if;
 
   return jsonb_build_object(
