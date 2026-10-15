@@ -1981,7 +1981,7 @@
         serverResult = await syncTransactionToSupabase(trx);
       } catch (error) {
         console.error('Atomic checkout gagal:', error);
-        if (/Nomor transaksi sudah digunakan dan payload tidak dapat diverifikasi/i.test(String(error?.message || ''))) {
+        if (/Nomor transaksi sudah digunakan dan payload tidak dapat diverifikasi|Nomor transaksi sudah ada dengan status/i.test(String(error?.message || ''))) {
           // Fail closed: the ID belongs to an older/unknown transaction. Never create a new ID automatically.
           showToast(`Nomor transaksi ${trxId} sudah ada tetapi belum dapat diverifikasi. Jangan ulangi pembayaran; periksa Laporan terlebih dahulu.`, 'error');
           return;
