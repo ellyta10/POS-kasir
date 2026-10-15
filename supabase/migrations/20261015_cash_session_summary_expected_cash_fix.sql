@@ -1,0 +1,69 @@
+create or replace function public.get_cash_session_summary(p_session_id uuid)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_uid uuid := auth.uid();
+  v_session public.cash_sessions%rowtype;
+  v_cash numeric := 0;
+  v_cash_count bigint := 0;
+  v_expected numeric := 0;
+  v_total numeric := 0;
+  v_count bigint := 0;
+begin
+  if v_uid is null then
+    raise exception 'Login diperlukan';
+  end if;
+
+  select *
+    into v_session
+  from public.cash_sessions
+  where id = p_session_id
+    and user_id = v_uid
+  for share;
+
+  if not found then
+    raise exception 'Shift tidak ditemukan';
+  end if;
+
+  select
+    coalesce(sum(amount) filter (where movement_type = 'CASH_SALE'), 0),
+    count(*) filter (where movement_type = 'CASH_SALE')
+  into v_cash, v_cash_count
+  from public.cash_movements
+  where session_id = v_session.id;
+
+  -- Keep the shift summary consistent with close_cash_session.
+  select
+    v_session.opening_cash
+    + coalesce(sum(amount) filter (where movement_type in ('CASH_SALE', 'CASH_IN', 'ADJUSTMENT')), 0)
+    + coalesce(sum(amount) filter (where movement_type = 'CASH_OUT'), 0)
+  into v_expected
+  from public.cash_movements
+  where session_id = v_session.id;
+
+  select
+    coalesce(sum(grand_total), 0),
+    count(*)
+  into v_total, v_count
+  from public.transactions
+  where cashier = coalesce(auth.jwt()->>'email', '')
+    and created_at >= v_session.opened_at
+    and (v_session.closed_at is null or created_at <= v_session.closed_at)
+    and status <> 'voided';
+
+  return jsonb_build_object(
+    'cash_sales', v_cash,
+    'cash_count', v_cash_count,
+    'total_sales', v_total,
+    'transaction_count', v_count,
+    'opening_cash', v_session.opening_cash,
+    'expected_cash', v_expected
+  );
+end;
+$$;
+
+revoke all on function public.get_cash_session_summary(uuid) from anon, public;
+grant execute on function public.get_cash_session_summary(uuid) to authenticated;
