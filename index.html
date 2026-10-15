@@ -1987,18 +1987,9 @@
           return;
         }
         if (isDuplicateKeyError(error)) {
-          if (attempt.sends > 1) {
-            // Pengiriman ulang dengan ID yang sama ditolak: kemungkinan besar pengiriman pertama sudah tersimpan.
-            showToast(`Transaksi ${trxId} kemungkinan SUDAH tersimpan. Periksa Laporan sebelum mengulang.`, 'error');
-            return;
-          }
-          if (allowIdRetry) {
-            // Kebetulan nomor sama dengan transaksi lain: buat nomor baru dan coba satu kali lagi.
-            checkoutAttempt = { id: generateTrxId(), signature: attempt.signature, sends: 0 };
-            return runCheckout(summary, given, false);
-          }
-          showToast('Nomor transaksi bentrok. Silakan tekan Bayar sekali lagi.', 'error');
-          checkoutAttempt = null;
+          // Never generate a new transaction ID automatically after a unique conflict:
+          // the previous request may already have committed. Reconcile in reports first.
+          showToast(`Nomor transaksi ${trxId} sudah digunakan atau hasil checkout belum dapat dipastikan. Jangan bayar ulang; periksa Laporan terlebih dahulu.`, 'error');
           return;
         }
         if (isNetworkError(error)) {
