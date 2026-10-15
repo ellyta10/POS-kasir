@@ -57,8 +57,8 @@ begin
   if p_payment_method = 'Gojek App' and p_order_type <> 'Gojek' then raise exception 'Gojek App hanya untuk order Gojek'; end if;
   if p_payment_method = 'Grab App' and p_order_type <> 'Grab' then raise exception 'Grab App hanya untuk order Grab'; end if;
   if p_items is null or jsonb_typeof(p_items) <> 'array' or jsonb_array_length(p_items) = 0 then raise exception 'Item pesanan kosong'; end if;
-  if coalesce(p_service_rate, 0) < 0 or coalesce(p_service_rate, 0) > 0.50 then raise exception 'Service charge tidak valid'; end if;
-  if coalesce(p_discount_rate, 0) < 0 or coalesce(p_discount_rate, 0) > 0.50 then raise exception 'Diskon tidak valid'; end if;
+  if coalesce(p_service_rate, 0) not in (0, 0.05, 0.07) then raise exception 'Service charge tidak valid'; end if;
+  if coalesce(p_discount_rate, 0) not in (0, 0.05, 0.10, 0.15, 0.20) then raise exception 'Diskon promo tidak valid'; end if;
 
   -- Validate item structure before aggregation, then collapse duplicate product IDs.
   for v_item in select value from jsonb_array_elements(p_items) as input_items(value) loop
@@ -104,6 +104,9 @@ begin
   where trx_id = trim(p_trx_id);
 
   if found then
+    if v_existing.status <> 'completed' then
+      raise exception 'Nomor transaksi sudah ada dengan status %; periksa laporan sebelum melanjutkan.', v_existing.status;
+    end if;
     if v_existing.checkout_fingerprint is null
        or v_existing.checkout_fingerprint <> v_fingerprint then
       raise exception 'Nomor transaksi sudah digunakan dan payload tidak dapat diverifikasi. Periksa riwayat sebelum mencoba lagi.';
@@ -250,7 +253,8 @@ exception
     from public.transactions
     where trx_id = trim(p_trx_id);
 
-    if found and v_existing.checkout_fingerprint is not null
+    if found and v_existing.status = 'completed'
+       and v_existing.checkout_fingerprint is not null
        and v_existing.checkout_fingerprint = v_fingerprint then
       select coalesce(cash_given, 0), coalesce(change_amount, 0)
         into v_existing_cash_given, v_existing_change
