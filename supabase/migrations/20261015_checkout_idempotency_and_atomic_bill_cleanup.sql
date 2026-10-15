@@ -33,6 +33,7 @@ declare
   v_change numeric := 0;
   v_item jsonb;
   v_items jsonb;
+  v_transaction_items jsonb;
   v_fingerprint text;
   v_product public.products%rowtype;
   v_price numeric;
@@ -162,6 +163,28 @@ begin
     end;
     v_subtotal := v_subtotal + v_price * v_qty;
   end loop;
+
+  -- Preserve the full legacy transaction item snapshot used by reports/history.
+  select jsonb_agg(
+    jsonb_build_object(
+      'id', p.id,
+      'name', p.name,
+      'price', case p_order_type
+        when 'Gojek' then coalesce(p.gojek_price, p.price)
+        when 'Grab' then coalesce(p.grab_price, p.price)
+        else p.price
+      end,
+      'qty', (i.value->>'qty')::numeric,
+      'lineTotal', (case p_order_type
+        when 'Gojek' then coalesce(p.gojek_price, p.price)
+        when 'Grab' then coalesce(p.grab_price, p.price)
+        else p.price
+      end) * (i.value->>'qty')::numeric
+    ) order by p.id
+  )
+  into v_transaction_items
+  from jsonb_array_elements(v_items) as i(value)
+  join public.products p on p.id = i.value->>'id';
 
   v_tax := case when coalesce(p_tax_enabled, false) then v_subtotal * 0.10 else 0 end;
   v_service := v_subtotal * coalesce(p_service_rate, 0);
