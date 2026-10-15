@@ -2024,9 +2024,12 @@
       trx.cashGiven = num(sr.cash_given, trx.cashGiven);
       trx.change = num(sr.change, trx.change);
 
-      // Active bill cleanup is performed atomically inside checkout_atomic.
-      // Do not issue a second client-side delete here: another cashier may have
-      // created a new bill for the same table after checkout committed.
+      // The RPC removes the paid bill atomically. Refresh from the server instead
+      // of deleting by table name again, which could erase a newer bill in the UI.
+      if (currentOrderType === 'Dine In') {
+        try { await loadActiveBillsFromSupabase(); }
+        catch (e) { console.warn('Checkout tersimpan, tetapi daftar bill aktif gagal dimuat ulang:', e); }
+      }
       try { await loadRawMaterialsFromSupabase(); } catch (e) { console.warn('Gagal memuat ulang stok bahan:', e); }
 
       closePaymentModal(true);
