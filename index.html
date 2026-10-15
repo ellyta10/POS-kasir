@@ -1981,19 +1981,15 @@
         serverResult = await syncTransactionToSupabase(trx);
       } catch (error) {
         console.error('Atomic checkout gagal:', error);
+        if (/Nomor transaksi sudah digunakan dan payload tidak dapat diverifikasi|Nomor transaksi sudah ada dengan status/i.test(String(error?.message || ''))) {
+          // Fail closed: the ID belongs to an older/unknown transaction. Never create a new ID automatically.
+          showToast(`Nomor transaksi ${trxId} sudah ada tetapi belum dapat diverifikasi. Jangan ulangi pembayaran; periksa Laporan terlebih dahulu.`, 'error');
+          return;
+        }
         if (isDuplicateKeyError(error)) {
-          if (attempt.sends > 1) {
-            // Pengiriman ulang dengan ID yang sama ditolak: kemungkinan besar pengiriman pertama sudah tersimpan.
-            showToast(`Transaksi ${trxId} kemungkinan SUDAH tersimpan. Periksa Laporan sebelum mengulang.`, 'error');
-            return;
-          }
-          if (allowIdRetry) {
-            // Kebetulan nomor sama dengan transaksi lain: buat nomor baru dan coba satu kali lagi.
-            checkoutAttempt = { id: generateTrxId(), signature: attempt.signature, sends: 0 };
-            return runCheckout(summary, given, false);
-          }
-          showToast('Nomor transaksi bentrok. Silakan tekan Bayar sekali lagi.', 'error');
-          checkoutAttempt = null;
+          // Never generate a new transaction ID automatically after a unique conflict:
+          // the previous request may already have committed. Reconcile in reports first.
+          showToast(`Nomor transaksi ${trxId} sudah digunakan atau hasil checkout belum dapat dipastikan. Jangan bayar ulang; periksa Laporan terlebih dahulu.`, 'error');
           return;
         }
         if (isNetworkError(error)) {
@@ -2019,13 +2015,12 @@
       trx.cashGiven = num(sr.cash_given, trx.cashGiven);
       trx.change = num(sr.change, trx.change);
 
-      try {
-        if (currentOrderType === 'Dine In' && ACTIVE_BILLS[currentTable]) {
-          const { error: billError } = await window.POSActiveBillsRepository.remove(supabaseClient, currentTable);
-          if (billError) showToast('Pembayaran tersimpan, tetapi bill aktif belum terhapus: ' + billError.message, 'error');
-          delete ACTIVE_BILLS[currentTable]; safeLocalSet('nyonya_active_bills', ACTIVE_BILLS); updateActiveBillsCount(); renderTableOptions();
-        }
-      } catch (e) { console.warn('Gagal membersihkan bill aktif setelah checkout:', e); }
+      // The RPC removes the paid bill atomically. Refresh from the server instead
+      // of deleting by table name again, which could erase a newer bill in the UI.
+      if (currentOrderType === 'Dine In') {
+        try { await loadActiveBillsFromSupabase(); }
+        catch (e) { console.warn('Checkout tersimpan, tetapi daftar bill aktif gagal dimuat ulang:', e); }
+      }
       try { await loadRawMaterialsFromSupabase(); } catch (e) { console.warn('Gagal memuat ulang stok bahan:', e); }
 
       closePaymentModal(true);
