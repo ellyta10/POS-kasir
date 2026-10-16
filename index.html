@@ -544,9 +544,9 @@
   </div>
   
     <nav id="mobile-bottom-nav" aria-label="Navigasi utama kasir">
-      <button type="button" onclick="document.getElementById('product-search-input')?.focus(); document.querySelector('main')?.scrollTo({top:0,behavior:'smooth'});" aria-label="Menu"><i class="fa-solid fa-utensils"></i><span>Menu</span></button>
+      <button type="button" onclick="document.getElementById('product-search-input')?.focus(); document.querySelector('#product-grid')?.parentElement?.scrollTo({top:0,behavior:'smooth'});" aria-label="Menu"><i class="fa-solid fa-utensils"></i><span>Menu</span></button>
       <button type="button" onclick="toggleMobileCart()" aria-label="Keranjang"><i class="fa-solid fa-basket-shopping"></i><span>Keranjang</span></button>
-      <button type="button" onclick="openReportsModal()" aria-label="Laporan"><i class="fa-solid fa-chart-column"></i><span>Laporan</span></button>
+      <button type="button" onclick="checkAdminAccess('reports')" aria-label="Laporan"><i class="fa-solid fa-chart-column"></i><span>Laporan</span></button>
       <button type="button" onclick="openShiftModal()" aria-label="Shift kasir"><i class="fa-solid fa-cash-register"></i><span>Shift</span></button>
     </nav>
 </main>
