@@ -2,7 +2,7 @@
 <html lang="id">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Kasir POS Nyonya Terasi Tiban</title>
   <!--
     PERBAIKAN BATCH 1 (Phase A, frontend):
@@ -269,6 +269,36 @@
       .printable-area { position: absolute; left: 0; top: 0; width: 100%; margin: 0; padding: 0; }
       .no-print { display: none !important; }
     }
+
+    /* MOBILE POS REDESIGN — isolated presentation layer; transaction logic unchanged */
+    @media (max-width: 767px) {
+      #product-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .65rem; }
+      #product-grid > button { padding: .75rem; border-radius: 1rem; min-height: 132px; display:flex; flex-direction:column; justify-content:space-between; }
+      #product-grid > button > div:first-child { align-items:center; }
+      #product-grid > button > div:first-child > span:first-child { font-size:1.8rem; }
+      #product-grid > button > div:last-child { margin-top:.6rem; }
+      #product-grid > button > div:last-child > div:first-child { font-size:.82rem; line-height:1.25; }
+      #product-grid > button > div:last-child > div:nth-child(2) { display:none; }
+      #product-grid > button > div:last-child > div:last-child { margin-top:.45rem; font-size:.82rem; }
+      #mobile-bottom-nav { display:grid; }
+      main { padding-bottom: calc(64px + env(safe-area-inset-bottom)); }
+      #cart-panel { bottom: calc(64px + env(safe-area-inset-bottom)); height: min(76dvh, 620px); max-height: min(76dvh, 620px); overflow:hidden; }
+      #cart-panel > .flex-1 { overflow-y:auto; }
+      #cart-panel > #payment-panel { flex:0 0 auto; position:sticky; bottom:0; z-index:2; background:#fff; border-top:1px solid #e2e8f0; box-shadow:0 -8px 20px rgb(15 23 42 / .06); }
+      #mobile-cart-toggle { bottom: calc(74px + env(safe-area-inset-bottom)); }
+    }
+    @media (max-width: 380px) {
+      #product-grid { gap:.5rem; }
+      #product-grid > button { padding:.6rem; min-height:120px; }
+    }
+    #mobile-bottom-nav { display:none; }
+    @media (max-width: 767px) {
+      #mobile-bottom-nav { position:fixed; left:0; right:0; bottom:0; z-index:35; display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:.25rem; padding:.4rem .5rem calc(.4rem + env(safe-area-inset-bottom)); background:rgb(255 255 255 / .96); border-top:1px solid #e2e8f0; box-shadow:0 -8px 24px rgb(15 23 42 / .08); backdrop-filter:blur(12px); }
+      #mobile-bottom-nav button { min-height:48px; border-radius:.8rem; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:.2rem; font-size:.62rem; font-weight:800; color:#64748b; }
+      #mobile-bottom-nav button i { font-size:1rem; }
+      #mobile-bottom-nav button:active { background:#fff7ed; color:#c2410c; }
+    }
+
   </style>
 </head>
 
@@ -441,8 +471,12 @@
         <!-- Rendered via JS -->
       </div>
 
-      <!-- CART ACTIONS: payment details open only when cashier chooses Bayar Kasir -->
+      <!-- CART ACTIONS: always show live total; detailed breakdown remains in payment modal -->
       <div id="payment-panel" class="mt-auto p-3.5 border-t border-slate-300 bg-white shrink-0 shadow-2xl">
+        <div class="flex items-center justify-between gap-3 mb-3 rounded-xl bg-emerald-50 px-3 py-2.5">
+          <div class="min-w-0"><p class="text-[10px] font-bold uppercase tracking-wide text-emerald-800">Estimasi total</p><p class="text-[10px] text-slate-500">Rincian final di Bayar Kasir</p></div>
+          <strong id="cart-action-total" class="shrink-0 font-mono text-base font-black text-emerald-800">Rp 0</strong>
+        </div>
         <div class="grid grid-cols-2 gap-2">
           <button onclick="sendToKitchen()" class="py-3 px-2 bg-amber-500 hover:bg-amber-600 text-slate-950 rounded-xl text-xs font-black transition flex items-center justify-center gap-1.5 shadow-md shadow-amber-500/30 active:scale-95">
             <i class="fa-solid fa-fire-burner text-slate-950"></i><span>Order Dapur</span>
@@ -451,7 +485,6 @@
             <i class="fa-solid fa-credit-card text-sm"></i><span>Bayar Kasir</span>
           </button>
         </div>
-        <p class="text-center text-[10px] text-slate-400 mt-2">Subtotal, pajak, diskon, dan pembayaran muncul setelah Bayar Kasir</p>
       </div>
     </section>
 
@@ -512,7 +545,14 @@
       <div class="payment-modal-footer p-4 sm:p-5 bg-white border-t flex flex-col-reverse sm:flex-row gap-2 sm:justify-between shrink-0"><button type="button" onclick="closePaymentModal()" class="px-5 py-3 rounded-xl bg-slate-100 text-slate-600 font-bold text-sm">Kembali ke Pesanan</button><button type="button" onclick="processCheckout()" class="px-6 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-black text-sm"><i class="fa-solid fa-circle-check mr-2"></i><span>Konfirmasi & Bayar</span></button></div>
     </div>
   </div>
-  </main>
+  
+    <nav id="mobile-bottom-nav" aria-label="Navigasi utama kasir">
+      <button type="button" onclick="document.getElementById('product-search-input')?.focus(); document.querySelector('#product-grid')?.parentElement?.scrollTo({top:0,behavior:'smooth'});" aria-label="Menu"><i class="fa-solid fa-utensils"></i><span>Menu</span></button>
+      <button type="button" onclick="toggleMobileCart()" aria-label="Keranjang"><i class="fa-solid fa-basket-shopping"></i><span>Keranjang</span></button>
+      <button type="button" onclick="checkAdminAccess('reports')" aria-label="Laporan"><i class="fa-solid fa-chart-column"></i><span>Laporan</span></button>
+      <button type="button" onclick="openShiftModal()" aria-label="Shift kasir"><i class="fa-solid fa-cash-register"></i><span>Shift</span></button>
+    </nav>
+</main>
 
   <div id="mobile-cart-backdrop" onclick="toggleMobileCart(false)" class="fixed inset-0 bg-slate-900/40 z-30 hidden"></div>
   <button id="mobile-cart-toggle" type="button" onclick="toggleMobileCart()" class="lg:hidden fixed bottom-4 left-4 right-4 z-30 min-h-[48px] rounded-2xl bg-emerald-600 px-4 py-3 text-white font-extrabold shadow-xl flex items-center justify-center">
@@ -1762,6 +1802,8 @@
       document.getElementById('cart-item-count').textContent = CART.reduce((acc, i) => acc + i.qty, 0);
       document.getElementById('cart-tax').textContent = `Rp ${summary.tax.toLocaleString('id-ID')}`;
       document.getElementById('cart-grand-total').textContent = `Rp ${summary.grandTotal.toLocaleString('id-ID')}`;
+      const actionTotal = document.getElementById('cart-action-total');
+      if (actionTotal) actionTotal.textContent = `Rp ${summary.grandTotal.toLocaleString('id-ID')}`;
       calculateCashChange(summary.grandTotal);
       return summary.grandTotal;
     }
