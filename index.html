@@ -471,8 +471,12 @@
         <!-- Rendered via JS -->
       </div>
 
-      <!-- CART ACTIONS: payment details open only when cashier chooses Bayar Kasir -->
+      <!-- CART ACTIONS: always show live total; detailed breakdown remains in payment modal -->
       <div id="payment-panel" class="mt-auto p-3.5 border-t border-slate-300 bg-white shrink-0 shadow-2xl">
+        <div class="flex items-center justify-between gap-3 mb-3 rounded-xl bg-emerald-50 px-3 py-2.5">
+          <div class="min-w-0"><p class="text-[10px] font-bold uppercase tracking-wide text-emerald-800">Estimasi total</p><p class="text-[10px] text-slate-500">Rincian final di Bayar Kasir</p></div>
+          <strong id="cart-action-total" class="shrink-0 font-mono text-base font-black text-emerald-800">Rp 0</strong>
+        </div>
         <div class="grid grid-cols-2 gap-2">
           <button onclick="sendToKitchen()" class="py-3 px-2 bg-amber-500 hover:bg-amber-600 text-slate-950 rounded-xl text-xs font-black transition flex items-center justify-center gap-1.5 shadow-md shadow-amber-500/30 active:scale-95">
             <i class="fa-solid fa-fire-burner text-slate-950"></i><span>Order Dapur</span>
@@ -481,7 +485,6 @@
             <i class="fa-solid fa-credit-card text-sm"></i><span>Bayar Kasir</span>
           </button>
         </div>
-        <p class="text-center text-[10px] text-slate-400 mt-2">Subtotal, pajak, diskon, dan pembayaran muncul setelah Bayar Kasir</p>
       </div>
     </section>
 
@@ -1799,6 +1802,8 @@
       document.getElementById('cart-item-count').textContent = CART.reduce((acc, i) => acc + i.qty, 0);
       document.getElementById('cart-tax').textContent = `Rp ${summary.tax.toLocaleString('id-ID')}`;
       document.getElementById('cart-grand-total').textContent = `Rp ${summary.grandTotal.toLocaleString('id-ID')}`;
+      const actionTotal = document.getElementById('cart-action-total');
+      if (actionTotal) actionTotal.textContent = `Rp ${summary.grandTotal.toLocaleString('id-ID')}`;
       calculateCashChange(summary.grandTotal);
       return summary.grandTotal;
     }
