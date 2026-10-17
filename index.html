@@ -781,7 +781,7 @@
         </div>
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 items-end">
           <label class="text-xs font-bold text-slate-600">Kas awal
-            <input id="shift-opening-cash" type="text" inputmode="numeric" autocomplete="off" oninput="formatCurrencyInput(this)" value="500.000" class="mt-1 w-full px-3 py-2 border border-slate-200 rounded-xl font-mono">
+            <input id="shift-opening-cash" type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" oninput="formatCurrencyInput(this)" placeholder="Masukkan kas awal" value="" class="mt-1 w-full px-3 py-2 border border-slate-200 rounded-xl font-mono">
           </label>
           <button onclick="startCashSession()" class="px-4 py-2 bg-emerald-600 text-white text-xs font-bold rounded-xl">Buka Shift</button>
         </div>
@@ -1113,7 +1113,7 @@
         <input type="hidden" id="edit-raw-id">
         <div><label class="text-xs font-bold text-slate-600 block mb-1">Nama Bahan:</label><input type="text" id="rm-name-input" class="w-full px-3 py-2 border rounded-xl text-xs font-bold"></div>
         <div class="grid grid-cols-2 gap-3">
-          <div><label class="text-xs font-bold text-slate-600 block mb-1">Stok:</label><input type="number" id="rm-stock-input" value="100" class="w-full px-3 py-2 border rounded-xl text-xs font-bold"></div>
+          <div><label class="text-xs font-bold text-slate-600 block mb-1">Stok:</label><input type="number" inputmode="numeric" pattern="[0-9]*" id="rm-stock-input" value="100" class="w-full px-3 py-2 border rounded-xl text-xs font-bold"></div>
           <div><label class="text-xs font-bold text-slate-600 block mb-1">Satuan:</label><input type="text" id="rm-unit-input" value="kg" class="w-full px-3 py-2 border rounded-xl text-xs font-bold"></div>
         </div>
       </div>
@@ -1141,7 +1141,7 @@
         <div class="grid grid-cols-2 gap-3">
           <div>
             <label class="text-xs font-bold text-slate-600 block mb-1">Harga Toko</label>
-            <input id="product-price-input" type="number" min="0" step="500" placeholder="28000" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm">
+            <input id="product-price-input" type="number" inputmode="numeric" pattern="[0-9]*" min="0" step="500" placeholder="28000" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm">
           </div>
           <div>
             <label class="text-xs font-bold text-slate-600 block mb-1">Emoji</label>
@@ -1151,11 +1151,11 @@
         <div class="grid grid-cols-2 gap-3">
           <div>
             <label class="text-xs font-bold text-slate-600 block mb-1">Harga Gojek</label>
-            <input id="product-gojek-price-input" type="number" min="0" step="500" placeholder="32000" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm">
+            <input id="product-gojek-price-input" type="number" inputmode="numeric" pattern="[0-9]*" min="0" step="500" placeholder="32000" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm">
           </div>
           <div>
             <label class="text-xs font-bold text-slate-600 block mb-1">Harga Grab</label>
-            <input id="product-grab-price-input" type="number" min="0" step="500" placeholder="32000" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm">
+            <input id="product-grab-price-input" type="number" inputmode="numeric" pattern="[0-9]*" min="0" step="500" placeholder="32000" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm">
           </div>
         </div>
         <label class="flex items-center gap-2 text-sm font-semibold text-slate-700">
