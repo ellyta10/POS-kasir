@@ -2,7 +2,7 @@
 <html lang="id">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no, viewport-fit=cover">
   <title>Kasir POS Nyonya Terasi Tiban</title>
   <!--
     PERBAIKAN BATCH 1 (Phase A, frontend):
@@ -300,19 +300,66 @@
     }
 
   
-    /* Mobile navigation refinement: primary navigation above search, not duplicated at the bottom. */
-    #mobile-top-nav { display:none; }
+    /* Mobile POS: lock page zoom to keep the interface fit-to-screen. */
+    html, body { touch-action: pan-x pan-y; }
+    @media (max-width: 1023px) {
+      html, body { touch-action: pan-x pan-y; }
+    }
+    #mobile-bottom-nav { display: none !important; }
     @media (max-width: 767px) {
+      #mobile-bottom-nav { display: none !important; }
+      /* Allow the active modal's own content area to scroll instead of trapping the whole screen. */
+      #management-modal, #reports-modal,
+      #recall-bills-modal, #shift-modal, #void-transaction-modal,
+      #add-member-modal, #user-switch-modal, #add-raw-material-modal,
+      #add-product-modal, #move-table-modal, #receipt-modal, #kitchen-ticket-modal {
+        overscroll-behavior: auto;
+      }
+      #management-modal > div, #reports-modal > div {
+        -webkit-overflow-scrolling: touch;
+      }
+    }
+
+    /* Mobile primary navigation: force the role-aware action bar above the search field. */
+    #mobile-top-nav { display:none !important; }
+    @media (max-width: 1023px) {
       #mobile-top-nav {
-        display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:.35rem;
-        padding:.5rem .65rem; background:#fff; border-bottom:1px solid #e2e8f0;
+        display:grid !important;
+        grid-template-columns:repeat(5,minmax(0,1fr));
+        align-items:stretch;
+        gap:.35rem;
+        flex:0 0 auto;
+        width:100%;
+        box-sizing:border-box;
+        position:relative;
+        z-index:10;
+        padding:.5rem .65rem;
+        background:#fff;
+        border-bottom:1px solid #e2e8f0;
       }
       #mobile-top-nav button {
-        display:flex; flex-direction:column; align-items:center; justify-content:center; gap:.2rem;
-        min-width:0; min-height:48px; padding:.35rem .15rem; border:1px solid #e2e8f0;
-        border-radius:.75rem; background:#f8fafc; color:#475569; font-size:.7rem; font-weight:700;
+        display:flex;
+        flex-direction:column;
+        align-items:center;
+        justify-content:center;
+        gap:.2rem;
+        min-width:0;
+        min-height:48px;
+        padding:.35rem .1rem;
+        border:1px solid #e2e8f0;
+        border-radius:.75rem;
+        background:#f8fafc;
+        color:#475569;
+        font-size:.68rem;
+        font-weight:700;
+        line-height:1.1;
       }
       #mobile-top-nav button i { font-size:1rem; }
+      #mobile-top-nav button span { white-space:nowrap; }
+      #mobile-nav-stock-menu { gap:.2rem; }
+      #mobile-nav-stock-menu > span { font-size:.58rem; letter-spacing:-.025em; }
+      #mobile-top-nav .mobile-admin-nav[hidden],
+      #mobile-top-nav .mobile-admin-nav[style*="display: none"] { display:none !important; }
       #mobile-top-nav button:active { background:#fff7ed; border-color:#fdba74; color:#c2410c; }
       main { padding-bottom:0 !important; }
       #cart-panel { bottom:0 !important; height:76dvh !important; max-height:76dvh !important; }
@@ -404,12 +451,23 @@
   <main class="flex-1 flex flex-col lg:flex-row min-h-0 overflow-hidden">
     <!-- LEFT PANEL: CATALOG & SEARCH -->
     <section class="flex-1 flex flex-col bg-slate-100 border-r border-slate-200 min-w-0">
-      <!-- MOBILE PRIMARY NAVIGATION: ABOVE PRODUCT SEARCH -->
+      <!-- MOBILE PRIMARY NAVIGATION: ROLE-BASED POS ACTIONS -->
       <nav id="mobile-top-nav" aria-label="Navigasi utama kasir">
-        <button type="button" onclick="document.getElementById('product-search-input')?.focus(); document.querySelector('#product-grid')?.parentElement?.scrollTo({top:0,behavior:'smooth'});" aria-label="Menu"><i class="fa-solid fa-utensils"></i><span>Menu</span></button>
-        <button type="button" onclick="toggleMobileCart()" aria-label="Keranjang"><i class="fa-solid fa-basket-shopping"></i><span>Keranjang</span></button>
-        <button type="button" onclick="checkAdminAccess('reports')" aria-label="Laporan"><i class="fa-solid fa-chart-column"></i><span>Laporan</span></button>
-        <button type="button" onclick="openShiftModal()" aria-label="Shift kasir"><i class="fa-solid fa-cash-register"></i><span>Shift</span></button>
+        <button type="button" id="mobile-nav-bills" onclick="openRecallBillsModal()" aria-label="Bill aktif">
+          <i class="fa-solid fa-receipt"></i><span>Bill (<span id="mobile-active-bills-count">0</span>)</span>
+        </button>
+        <button type="button" id="mobile-nav-void" onclick="openVoidModal()" aria-label="Void transaksi">
+          <i class="fa-solid fa-ban"></i><span>Void</span>
+        </button>
+        <button type="button" id="mobile-nav-shift" onclick="openShiftModal()" aria-label="Shift kasir">
+          <i class="fa-solid fa-cash-register"></i><span>Shift</span>
+        </button>
+        <button type="button" id="mobile-nav-stock-menu" class="mobile-admin-nav" onclick="checkAdminAccess('management')" aria-label="Stok dan menu">
+          <i class="fa-solid fa-boxes-stacked"></i><span>Stok &amp; Menu</span>
+        </button>
+        <button type="button" id="mobile-nav-reports" class="mobile-admin-nav" onclick="checkAdminAccess('reports')" aria-label="Laporan">
+          <i class="fa-solid fa-chart-column"></i><span>Laporan</span>
+        </button>
       </nav>
 
       <!-- SEARCH & CATEGORY BAR -->
@@ -1692,6 +1750,36 @@
     function updateCartQty(idx, delta) { CART[idx].qty += delta; if(CART[idx].qty <= 0) CART.splice(idx, 1); renderCart(); }
     function updateCartNotes(idx, val) { CART[idx].notes = val; }
     function removeFromCart(idx) { CART.splice(idx, 1); renderCart(); }
+
+    // Keep the mobile action bar aligned with the authenticated role.
+    function syncMobileTopNavRole() {
+      // Role values may arrive as "Admin", "admin", or "owner" depending on auth/profile source.
+      const normalizedRole = String(currentUserRole || '').trim().toLowerCase();
+      const isAdmin = normalizedRole === 'admin' || normalizedRole === 'owner' || normalizedRole.includes('admin');
+      document.querySelectorAll('#mobile-top-nav .mobile-admin-nav').forEach((button) => {
+        button.hidden = !isAdmin;
+        button.style.display = isAdmin ? 'flex' : 'none';
+      });
+      const nav = document.getElementById('mobile-top-nav');
+      if (nav) nav.dataset.roleReady = 'true';
+    }
+
+    // Mirror the active-bill count in the mobile navigation.
+    function syncMobileActiveBillsCount() {
+      const source = document.getElementById('active-bills-count');
+      const target = document.getElementById('mobile-active-bills-count');
+      if (source && target) target.textContent = source.textContent || '0';
+    }
+
+    // Role and bill count can change after login or refresh; observe their existing UI sources.
+    document.addEventListener('DOMContentLoaded', () => {
+      syncMobileTopNavRole();
+      syncMobileActiveBillsCount();
+      const roleBadge = document.getElementById('header-user-role-badge');
+      if (roleBadge) new MutationObserver(syncMobileTopNavRole).observe(roleBadge, { childList: true, characterData: true, subtree: true });
+      const billCount = document.getElementById('active-bills-count');
+      if (billCount) new MutationObserver(syncMobileActiveBillsCount).observe(billCount, { childList: true, characterData: true, subtree: true });
+    });
 
     function toggleMobileHeaderMenu(force) {
       const actions = document.querySelector('.app-header-actions');
