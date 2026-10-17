@@ -2582,6 +2582,7 @@
         if (index >= 0) PRODUCTS[index] = product;
         else PRODUCTS.push(product);
         safeLocalSet('nyonya_products', PRODUCTS);
+        renderCategoryTabs();
         renderProducts();
         renderProductsTable();
         renderMenuManagementTable();
@@ -2607,6 +2608,7 @@
         if (error) throw error;
         PRODUCTS = PRODUCTS.filter(item => item.id !== id);
         safeLocalSet('nyonya_products', PRODUCTS);
+        renderCategoryTabs();
         renderProducts();
         renderProductsTable();
         renderMenuManagementTable();
