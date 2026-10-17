@@ -1147,39 +1147,54 @@
             <label class="text-xs font-bold text-slate-600 block mb-1">Emoji</label>
             <input id="product-emoji-input" type="text" maxlength="4" placeholder="Pilih emoji di bawah" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm">
             <div class="mt-2">
-              <p class="text-[11px] text-slate-500 mb-1">Pilih emoji cepat</p>
-              <div id="product-emoji-picker" class="grid grid-cols-7 gap-1">
-                <button type="button" onclick="setProductEmoji('🍚')" title="Nasi putih" class="rounded-lg border p-2 text-xl">🍚</button>
-                <button type="button" onclick="setProductEmoji('🍛')" title="Nasi goreng" class="rounded-lg border p-2 text-xl">🍛</button>
-                <button type="button" onclick="setProductEmoji('🍗')" title="Ayam goreng" class="rounded-lg border p-2 text-xl">🍗</button>
-                <button type="button" onclick="setProductEmoji('🍖')" title="Ayam bakar" class="rounded-lg border p-2 text-xl">🍖</button>
-                <button type="button" onclick="setProductEmoji('🐟')" title="Ikan goreng" class="rounded-lg border p-2 text-xl">🐟</button>
-                <button type="button" onclick="setProductEmoji('🔥')" title="Ikan bakar" class="rounded-lg border p-2 text-xl">🔥</button>
-                <button type="button" onclick="setProductEmoji('🥬')" title="Sayur kangkung" class="rounded-lg border p-2 text-xl">🥬</button>
-                <button type="button" onclick="setProductEmoji('🍶')" title="Air putih" class="rounded-lg border p-2 text-xl">🍶</button>
-                <button type="button" onclick="setProductEmoji('💧')" title="Air mineral" class="rounded-lg border p-2 text-xl">💧</button>
-                <button type="button" onclick="setProductEmoji('🫖')" title="Teh manis" class="rounded-lg border p-2 text-xl">🫖</button>
-                <button type="button" onclick="setProductEmoji('🧃')" title="Jus" class="rounded-lg border p-2 text-xl">🧃</button>
-                <button type="button" onclick="setProductEmoji('🥤')" title="Softdrink" class="rounded-lg border p-2 text-xl">🥤</button>
-                <button type="button" onclick="setProductEmoji('🍢')" title="Sate" class="rounded-lg border p-2 text-xl">🍢</button>
-                <button type="button" onclick="setProductEmoji('🍜')" title="Mie" class="rounded-lg border p-2 text-xl">🍜</button>
-                <button type="button" onclick="setProductEmoji('🍝')" title="Mie goreng" class="rounded-lg border p-2 text-xl">🍝</button>
-                <button type="button" onclick="setProductEmoji('🍳')" title="Telur" class="rounded-lg border p-2 text-xl">🍳</button>
-                <button type="button" onclick="setProductEmoji('🍤')" title="Udang" class="rounded-lg border p-2 text-xl">🍤</button>
-                <button type="button" onclick="setProductEmoji('🦑')" title="Cumi" class="rounded-lg border p-2 text-xl">🦑</button>
-                <button type="button" onclick="setProductEmoji('🥩')" title="Daging" class="rounded-lg border p-2 text-xl">🥩</button>
-                <button type="button" onclick="setProductEmoji('🍟')" title="Kentang goreng" class="rounded-lg border p-2 text-xl">🍟</button>
-                <button type="button" onclick="setProductEmoji('🥚')" title="Telur rebus" class="rounded-lg border p-2 text-xl">🥚</button>
-                <button type="button" onclick="setProductEmoji('🍲')" title="Sup" class="rounded-lg border p-2 text-xl">🍲</button>
-                <button type="button" onclick="setProductEmoji('🥗')" title="Salad" class="rounded-lg border p-2 text-xl">🥗</button>
-                <button type="button" onclick="setProductEmoji('🍞')" title="Roti" class="rounded-lg border p-2 text-xl">🍞</button>
-                <button type="button" onclick="setProductEmoji('🍰')" title="Kue" class="rounded-lg border p-2 text-xl">🍰</button>
-                <button type="button" onclick="setProductEmoji('🍌')" title="Pisang" class="rounded-lg border p-2 text-xl">🍌</button>
-                <button type="button" onclick="setProductEmoji('☕')" title="Kopi" class="rounded-lg border p-2 text-xl">☕</button>
-                <button type="button" onclick="setProductEmoji('🧊')" title="Es batu / minuman dingin" class="rounded-lg border p-2 text-xl">🧊</button>
-                <button type="button" onclick="setProductEmoji('🍋')" title="Jeruk / lemon" class="rounded-lg border p-2 text-xl">🍋</button>
-                <button type="button" onclick="setProductEmoji('🥡')" title="Makanan bungkus" class="rounded-lg border p-2 text-xl">🥡</button>
-              </div>
+              <label for="product-emoji-select" class="text-[11px] text-slate-500 mb-1 block">Pilih emoji menu</label>
+              <select id="product-emoji-select" onchange="setProductEmoji(this.value)" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm bg-white">
+                <option value="">— Pilih kategori / emoji —</option>
+                <optgroup label="Nasi">
+                  <option value="🍚">🍚 Nasi putih</option>
+                  <option value="🍛">🍛 Nasi goreng</option>
+                </optgroup>
+                <optgroup label="Ayam & daging">
+                  <option value="🍗">🍗 Ayam goreng</option>
+                  <option value="🍖">🍖 Ayam bakar</option>
+                  <option value="🥩">🥩 Daging</option>
+                  <option value="🍢">🍢 Sate</option>
+                </optgroup>
+                <optgroup label="Ikan & seafood">
+                  <option value="🐟">🐟 Ikan goreng</option>
+                  <option value="🔥">🔥 Ikan bakar</option>
+                  <option value="🍤">🍤 Udang</option>
+                  <option value="🦑">🦑 Cumi</option>
+                </optgroup>
+                <optgroup label="Sayur & pelengkap">
+                  <option value="🥬">🥬 Kangkung / sayur</option>
+                  <option value="🍳">🍳 Telur</option>
+                  <option value="🥚">🥚 Telur rebus</option>
+                  <option value="🍲">🍲 Sup</option>
+                  <option value="🥗">🥗 Salad</option>
+                  <option value="🍟">🍟 Kentang goreng</option>
+                </optgroup>
+                <optgroup label="Mie & roti">
+                  <option value="🍜">🍜 Mie</option>
+                  <option value="🍝">🍝 Mie goreng</option>
+                  <option value="🍞">🍞 Roti</option>
+                  <option value="🥡">🥡 Makanan bungkus</option>
+                </optgroup>
+                <optgroup label="Minuman">
+                  <option value="🍶">🍶 Air putih</option>
+                  <option value="💧">💧 Air mineral</option>
+                  <option value="🫖">🫖 Teh manis</option>
+                  <option value="🧃">🧃 Jus</option>
+                  <option value="🥤">🥤 Softdrink</option>
+                  <option value="☕">☕ Kopi</option>
+                  <option value="🧊">🧊 Minuman dingin / es</option>
+                  <option value="🍋">🍋 Jeruk / lemon</option>
+                </optgroup>
+                <optgroup label="Camilan & dessert">
+                  <option value="🍰">🍰 Kue</option>
+                  <option value="🍌">🍌 Pisang</option>
+                </optgroup>
+              </select>
             </div>
           </div>
         </div>
