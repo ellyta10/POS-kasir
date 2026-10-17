@@ -1145,7 +1145,42 @@
           </div>
           <div>
             <label class="text-xs font-bold text-slate-600 block mb-1">Emoji</label>
-            <input id="product-emoji-input" type="text" maxlength="4" placeholder="🍛" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm">
+            <input id="product-emoji-input" type="text" maxlength="4" placeholder="Pilih emoji di bawah" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm">
+            <div class="mt-2">
+              <p class="text-[11px] text-slate-500 mb-1">Pilih emoji cepat</p>
+              <div id="product-emoji-picker" class="grid grid-cols-7 gap-1">
+                <button type="button" onclick="setProductEmoji('🍚')" title="Nasi putih" class="rounded-lg border p-2 text-xl">🍚</button>
+                <button type="button" onclick="setProductEmoji('🍛')" title="Nasi goreng" class="rounded-lg border p-2 text-xl">🍛</button>
+                <button type="button" onclick="setProductEmoji('🍗')" title="Ayam goreng" class="rounded-lg border p-2 text-xl">🍗</button>
+                <button type="button" onclick="setProductEmoji('🍖')" title="Ayam bakar" class="rounded-lg border p-2 text-xl">🍖</button>
+                <button type="button" onclick="setProductEmoji('🐟')" title="Ikan goreng" class="rounded-lg border p-2 text-xl">🐟</button>
+                <button type="button" onclick="setProductEmoji('🔥')" title="Ikan bakar" class="rounded-lg border p-2 text-xl">🔥</button>
+                <button type="button" onclick="setProductEmoji('🥬')" title="Sayur kangkung" class="rounded-lg border p-2 text-xl">🥬</button>
+                <button type="button" onclick="setProductEmoji('🍶')" title="Air putih" class="rounded-lg border p-2 text-xl">🍶</button>
+                <button type="button" onclick="setProductEmoji('💧')" title="Air mineral" class="rounded-lg border p-2 text-xl">💧</button>
+                <button type="button" onclick="setProductEmoji('🫖')" title="Teh manis" class="rounded-lg border p-2 text-xl">🫖</button>
+                <button type="button" onclick="setProductEmoji('🧃')" title="Jus" class="rounded-lg border p-2 text-xl">🧃</button>
+                <button type="button" onclick="setProductEmoji('🥤')" title="Softdrink" class="rounded-lg border p-2 text-xl">🥤</button>
+                <button type="button" onclick="setProductEmoji('🍢')" title="Sate" class="rounded-lg border p-2 text-xl">🍢</button>
+                <button type="button" onclick="setProductEmoji('🍜')" title="Mie" class="rounded-lg border p-2 text-xl">🍜</button>
+                <button type="button" onclick="setProductEmoji('🍝')" title="Mie goreng" class="rounded-lg border p-2 text-xl">🍝</button>
+                <button type="button" onclick="setProductEmoji('🍳')" title="Telur" class="rounded-lg border p-2 text-xl">🍳</button>
+                <button type="button" onclick="setProductEmoji('🍤')" title="Udang" class="rounded-lg border p-2 text-xl">🍤</button>
+                <button type="button" onclick="setProductEmoji('🦑')" title="Cumi" class="rounded-lg border p-2 text-xl">🦑</button>
+                <button type="button" onclick="setProductEmoji('🥩')" title="Daging" class="rounded-lg border p-2 text-xl">🥩</button>
+                <button type="button" onclick="setProductEmoji('🍟')" title="Kentang goreng" class="rounded-lg border p-2 text-xl">🍟</button>
+                <button type="button" onclick="setProductEmoji('🥚')" title="Telur rebus" class="rounded-lg border p-2 text-xl">🥚</button>
+                <button type="button" onclick="setProductEmoji('🍲')" title="Sup" class="rounded-lg border p-2 text-xl">🍲</button>
+                <button type="button" onclick="setProductEmoji('🥗')" title="Salad" class="rounded-lg border p-2 text-xl">🥗</button>
+                <button type="button" onclick="setProductEmoji('🍞')" title="Roti" class="rounded-lg border p-2 text-xl">🍞</button>
+                <button type="button" onclick="setProductEmoji('🍰')" title="Kue" class="rounded-lg border p-2 text-xl">🍰</button>
+                <button type="button" onclick="setProductEmoji('🍌')" title="Pisang" class="rounded-lg border p-2 text-xl">🍌</button>
+                <button type="button" onclick="setProductEmoji('☕')" title="Kopi" class="rounded-lg border p-2 text-xl">☕</button>
+                <button type="button" onclick="setProductEmoji('🧊')" title="Es batu / minuman dingin" class="rounded-lg border p-2 text-xl">🧊</button>
+                <button type="button" onclick="setProductEmoji('🍋')" title="Jeruk / lemon" class="rounded-lg border p-2 text-xl">🍋</button>
+                <button type="button" onclick="setProductEmoji('🥡')" title="Makanan bungkus" class="rounded-lg border p-2 text-xl">🥡</button>
+              </div>
+            </div>
           </div>
         </div>
         <div class="grid grid-cols-2 gap-3">
@@ -2325,6 +2360,11 @@
       const tbody = document.getElementById('menu-mgmt-table-body');
       tbody.innerHTML = PRODUCTS.map(p => `<tr class="hover:bg-slate-50"><td class="p-3 font-bold">${escapeHtml(p.emoji)} ${escapeHtml(p.name)}</td><td class="p-3 text-slate-500">${escapeHtml(p.category)}</td><td class="p-3 font-mono">Rp ${(Number(p.price) || 0).toLocaleString('id-ID')}</td><td class="p-3 text-slate-500">${p.recipe?.length||0} Bahan</td><td class="p-3 text-right whitespace-nowrap"><button type="button" data-id="${escapeHtml(p.id)}" onclick="openEditProductModal(this.dataset.id)" class="text-indigo-600 font-bold mr-3">Edit</button><button type="button" data-id="${escapeHtml(p.id)}" onclick="deleteProduct(this.dataset.id)" class="text-red-600 font-bold">Hapus</button></td></tr>`).join('');
     }
+    function setProductEmoji(emoji) {
+      const input = document.getElementById('product-emoji-input');
+      if (input) input.value = emoji;
+    }
+
     function openAddProductModal() {
       document.getElementById('product-modal-title').textContent = 'Tambah Menu Baru';
       document.getElementById('edit-product-id').value = '';
@@ -2713,7 +2753,7 @@
       document.getElementById('shift-cash-total').textContent = `Rp ${Number((CURRENT_CASH_SESSION?.opening_cash || 0) + shiftSummary.cash).toLocaleString('id-ID')}`;
       document.getElementById('shift-noncash-total').textContent = `Rp ${Math.max(0, shiftSummary.total - shiftSummary.cash).toLocaleString('id-ID')}`;
       document.getElementById('shift-trx-count').textContent = shiftSummary.count.toLocaleString('id-ID');
-      document.getElementById('shift-opening-cash').value = CURRENT_CASH_SESSION ? Number(CURRENT_CASH_SESSION.opening_cash) : 500000;
+      document.getElementById('shift-opening-cash').value = CURRENT_CASH_SESSION ? Number(CURRENT_CASH_SESSION.opening_cash).toLocaleString('id-ID') : '';
       renderCashSessionUI();
       document.getElementById('shift-modal').classList.remove('hidden');
     }
