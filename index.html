@@ -299,6 +299,27 @@
       #mobile-bottom-nav button:active { background:#fff7ed; color:#c2410c; }
     }
 
+  
+    /* Mobile navigation refinement: primary navigation above search, not duplicated at the bottom. */
+    #mobile-top-nav { display:none; }
+    @media (max-width: 767px) {
+      #mobile-top-nav {
+        display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:.35rem;
+        padding:.5rem .65rem; background:#fff; border-bottom:1px solid #e2e8f0;
+      }
+      #mobile-top-nav button {
+        display:flex; flex-direction:column; align-items:center; justify-content:center; gap:.2rem;
+        min-width:0; min-height:48px; padding:.35rem .15rem; border:1px solid #e2e8f0;
+        border-radius:.75rem; background:#f8fafc; color:#475569; font-size:.7rem; font-weight:700;
+      }
+      #mobile-top-nav button i { font-size:1rem; }
+      #mobile-top-nav button:active { background:#fff7ed; border-color:#fdba74; color:#c2410c; }
+      main { padding-bottom:0 !important; }
+      #cart-panel { bottom:0 !important; height:76dvh !important; max-height:76dvh !important; }
+      #mobile-cart-toggle { bottom:1rem !important; }
+      #toast-container { bottom:1rem !important; }
+    }
+
   </style>
 </head>
 
@@ -383,6 +404,14 @@
   <main class="flex-1 flex flex-col lg:flex-row min-h-0 overflow-hidden">
     <!-- LEFT PANEL: CATALOG & SEARCH -->
     <section class="flex-1 flex flex-col bg-slate-100 border-r border-slate-200 min-w-0">
+      <!-- MOBILE PRIMARY NAVIGATION: ABOVE PRODUCT SEARCH -->
+      <nav id="mobile-top-nav" aria-label="Navigasi utama kasir">
+        <button type="button" onclick="document.getElementById('product-search-input')?.focus(); document.querySelector('#product-grid')?.parentElement?.scrollTo({top:0,behavior:'smooth'});" aria-label="Menu"><i class="fa-solid fa-utensils"></i><span>Menu</span></button>
+        <button type="button" onclick="toggleMobileCart()" aria-label="Keranjang"><i class="fa-solid fa-basket-shopping"></i><span>Keranjang</span></button>
+        <button type="button" onclick="checkAdminAccess('reports')" aria-label="Laporan"><i class="fa-solid fa-chart-column"></i><span>Laporan</span></button>
+        <button type="button" onclick="openShiftModal()" aria-label="Shift kasir"><i class="fa-solid fa-cash-register"></i><span>Shift</span></button>
+      </nav>
+
       <!-- SEARCH & CATEGORY BAR -->
       <div class="bg-white p-3 border-b border-slate-200 shadow-sm flex flex-col gap-3 shrink-0">
         <div class="relative">
@@ -546,12 +575,7 @@
     </div>
   </div>
   
-    <nav id="mobile-bottom-nav" aria-label="Navigasi utama kasir">
-      <button type="button" onclick="document.getElementById('product-search-input')?.focus(); document.querySelector('#product-grid')?.parentElement?.scrollTo({top:0,behavior:'smooth'});" aria-label="Menu"><i class="fa-solid fa-utensils"></i><span>Menu</span></button>
-      <button type="button" onclick="toggleMobileCart()" aria-label="Keranjang"><i class="fa-solid fa-basket-shopping"></i><span>Keranjang</span></button>
-      <button type="button" onclick="checkAdminAccess('reports')" aria-label="Laporan"><i class="fa-solid fa-chart-column"></i><span>Laporan</span></button>
-      <button type="button" onclick="openShiftModal()" aria-label="Shift kasir"><i class="fa-solid fa-cash-register"></i><span>Shift</span></button>
-    </nav>
+
 </main>
 
   <div id="mobile-cart-backdrop" onclick="toggleMobileCart(false)" class="fixed inset-0 bg-slate-900/40 z-30 hidden"></div>
