@@ -478,22 +478,8 @@
         </div>
 
         <!-- DYNAMIC CATEGORY PILL TABS -->
-        <div id="category-tabs-container" class="flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar">
-          <button onclick="setCategoryFilter('Semua')" class="cat-pill px-4 py-1.5 rounded-xl text-xs font-bold transition whitespace-nowrap bg-brand-600 text-white shadow-sm shadow-brand-600/30">
-            Semua Menu
-          </button>
-          <button onclick="setCategoryFilter('Makanan Utama')" class="cat-pill px-4 py-1.5 rounded-xl text-xs font-bold transition whitespace-nowrap bg-slate-100 text-slate-600 hover:bg-slate-200">
-            Makanan Utama
-          </button>
-          <button onclick="setCategoryFilter('Minuman')" class="cat-pill px-4 py-1.5 rounded-xl text-xs font-bold transition whitespace-nowrap bg-slate-100 text-slate-600 hover:bg-slate-200">
-            Minuman
-          </button>
-          <button onclick="setCategoryFilter('Snack')" class="cat-pill px-4 py-1.5 rounded-xl text-xs font-bold transition whitespace-nowrap bg-slate-100 text-slate-600 hover:bg-slate-200">
-            Snack
-          </button>
-          <button onclick="setCategoryFilter('Dessert')" class="cat-pill px-4 py-1.5 rounded-xl text-xs font-bold transition whitespace-nowrap bg-slate-100 text-slate-600 hover:bg-slate-200">
-            Dessert
-          </button>
+        <div id="category-tabs-container" class="flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar" aria-label="Filter kategori menu">
+          <button type="button" data-category="Semua" onclick="setCategoryFilter('Semua')" class="cat-pill px-4 py-1.5 rounded-xl text-xs font-bold transition whitespace-nowrap bg-brand-600 text-white shadow-sm shadow-brand-600/30">Semua Menu</button>
         </div>
       </div>
 
@@ -1308,7 +1294,11 @@
       if (!supabaseClient) return;
       const { data, error } = await supabaseClient.from('categories').select('id,name').order('name').limit(500);
       if (error) throw error;
-      if (data?.length) { CATEGORIES = data.map(row => row.name); safeLocalSet('nyonya_categories', CATEGORIES); renderCategoriesTable(); }
+      // Cloud is authoritative, including when the table is intentionally empty.
+      CATEGORIES = (data || []).map(row => String(row.name || '').trim()).filter(Boolean);
+      safeLocalSet('nyonya_categories', CATEGORIES);
+      renderCategoriesTable();
+      renderCategoryTabs();
     }
     async function loadTablesFromSupabase() {
       if (!supabaseClient) return;
@@ -1375,6 +1365,7 @@
         PRODUCTS = data.map(window.POSProductsRepository.normalizeProduct);
 
         safeLocalSet('nyonya_products', PRODUCTS);
+        renderCategoryTabs();
         renderProducts();
         renderProductsTable();
         showToast('Menu berhasil dimuat dari Supabase', 'success');
@@ -1686,15 +1677,43 @@
 
     function filterProducts() { renderProducts(); }
 
-    function setCategoryFilter(category) {
-      currentCategoryFilter = category;
-      document.querySelectorAll('.cat-pill').forEach(button => {
-        const active = button.textContent.toLowerCase().includes(category.toLowerCase()) || (category === 'Semua' && button.textContent.toLowerCase().includes('semua'));
+    function renderCategoryTabs() {
+      const container = document.getElementById('category-tabs-container');
+      if (!container) return;
+      // Include categories used by existing products so legacy menu items never disappear from filters.
+      const productCategories = PRODUCTS.map(product => String(product.category || '').trim()).filter(Boolean);
+      const categories = [...new Set([...CATEGORIES, ...productCategories])].filter(name => name !== 'Semua').sort((a, b) => a.localeCompare(b, 'id'));
+      const allCategories = ['Semua', ...categories];
+      if (!allCategories.includes(currentCategoryFilter)) currentCategoryFilter = 'Semua';
+      container.innerHTML = '';
+      allCategories.forEach(category => {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.dataset.category = category;
+        button.className = 'cat-pill px-4 py-1.5 rounded-xl text-xs font-bold transition whitespace-nowrap';
+        button.textContent = category === 'Semua' ? 'Semua Menu' : category;
+        button.addEventListener('click', () => setCategoryFilter(category));
+        container.appendChild(button);
+      });
+      updateCategoryTabStyles();
+    }
+
+    function updateCategoryTabStyles() {
+      document.querySelectorAll('#category-tabs-container .cat-pill').forEach(button => {
+        const active = button.dataset.category === currentCategoryFilter;
         button.classList.toggle('bg-brand-600', active);
         button.classList.toggle('text-white', active);
+        button.classList.toggle('shadow-sm', active);
+        button.classList.toggle('shadow-brand-600/30', active);
         button.classList.toggle('bg-slate-100', !active);
         button.classList.toggle('text-slate-600', !active);
+        button.classList.toggle('hover:bg-slate-200', !active);
       });
+    }
+
+    function setCategoryFilter(category) {
+      currentCategoryFilter = category;
+      updateCategoryTabStyles();
       renderProducts();
     }
 
@@ -2502,7 +2521,7 @@
       const tbody = document.getElementById('categories-table-body');
       tbody.innerHTML = CATEGORIES.map(c => `<tr><td class="p-3 font-bold">${escapeHtml(c)}</td><td class="p-3 text-right"></td></tr>`).join('');
     }
-    async function addNewCategory() { const v = document.getElementById('new-category-input').value.trim(); if(!v || !supabaseClient) return; const row={id:'cat_'+Date.now(),name:v}; const {error}=await supabaseClient.from('categories').insert(row); if(error) return showToast('Gagal menyimpan kategori: '+error.message,'error'); CATEGORIES.push(v); safeLocalSet('nyonya_categories',CATEGORIES); renderCategoriesTable(); showToast('Kategori tersimpan di Supabase','success'); }
+    async function addNewCategory() { const v = document.getElementById('new-category-input').value.trim(); if(!v || !supabaseClient) return; const row={id:'cat_'+Date.now(),name:v}; const {error}=await supabaseClient.from('categories').insert(row); if(error) return showToast('Gagal menyimpan kategori: '+error.message,'error'); if (!CATEGORIES.some(name => name.toLocaleLowerCase('id') === v.toLocaleLowerCase('id'))) CATEGORIES.push(v); safeLocalSet('nyonya_categories',CATEGORIES); renderCategoriesTable(); renderCategoryTabs(); document.getElementById('new-category-input').value=''; showToast('Kategori tersimpan di Supabase dan muncul di menu kasir','success'); }
 
     function renderTablesTable() {
       const tbody = document.getElementById('tables-table-body');
