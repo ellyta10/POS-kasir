@@ -928,16 +928,19 @@
         </div>
 
         <!-- 4. CATEGORIES -->
-        <div id="mgmt-view-categories" class="space-y-4 hidden">
-          <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex gap-3 max-w-lg">
-            <input type="text" id="new-category-input" placeholder="Kategori baru..." class="flex-1 px-3 py-2 border border-slate-200 rounded-xl text-xs font-bold">
-            <button onclick="addNewCategory()" class="px-4 py-2 bg-brand-600 text-white text-xs font-bold rounded-xl">+ Tambah</button>
-          </div>
-          <div class="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm max-w-lg">
-            <table class="w-full text-left border-collapse text-xs">
-              <thead><tr class="bg-slate-100 text-slate-600 uppercase font-bold text-[10px] border-b"><th class="p-3">Kategori</th><th class="p-3 text-right">Aksi</th></tr></thead>
-              <tbody id="categories-table-body" class="divide-y divide-slate-100"></tbody>
-            </table>
+        <div id="mgmt-view-categories" class="space-y-5 hidden">
+          <p class="text-xs text-slate-500">Buat kategori dari sini. Kategori stok dan kategori menu dikelola terpisah, lalu muncul otomatis pada dropdown masing-masing.</p>
+          <div class="grid grid-cols-1 xl:grid-cols-2 gap-4">
+            <section class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm space-y-3">
+              <div><h4 class="font-extrabold text-sm text-slate-800">📦 Kategori Stok Opname Barang</h4><p class="text-xs text-slate-500 mt-1">Untuk bahan baku dan barang yang dicatat stoknya.</p></div>
+              <div class="flex gap-2"><input type="text" id="new-stock-category-input" placeholder="Contoh: Bahan Kemasan" class="min-w-0 flex-1 px-3 py-2 border border-slate-200 rounded-xl text-xs font-bold"><button onclick="addNewCategory('stock')" class="px-4 py-2 bg-brand-600 text-white text-xs font-bold rounded-xl">+ Tambah</button></div>
+              <div class="overflow-x-auto rounded-xl border border-slate-200"><table class="w-full text-left text-xs"><thead><tr class="bg-slate-100 text-slate-600 uppercase text-[10px]"><th class="p-3">Kategori Stok</th></tr></thead><tbody id="stock-categories-table-body" class="divide-y divide-slate-100"></tbody></table></div>
+            </section>
+            <section class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm space-y-3">
+              <div><h4 class="font-extrabold text-sm text-slate-800">🍽️ Kategori Kelola Menu dan Resep</h4><p class="text-xs text-slate-500 mt-1">Untuk mengelompokkan menu yang dijual.</p></div>
+              <div class="flex gap-2"><input type="text" id="new-menu-category-input" placeholder="Contoh: Makanan Utama" class="min-w-0 flex-1 px-3 py-2 border border-slate-200 rounded-xl text-xs font-bold"><button onclick="addNewCategory('menu')" class="px-4 py-2 bg-brand-600 text-white text-xs font-bold rounded-xl">+ Tambah</button></div>
+              <div class="overflow-x-auto rounded-xl border border-slate-200"><table class="w-full text-left text-xs"><thead><tr class="bg-slate-100 text-slate-600 uppercase text-[10px]"><th class="p-3">Kategori Menu</th></tr></thead><tbody id="menu-categories-table-body" class="divide-y divide-slate-100"></tbody></table></div>
+            </section>
           </div>
         </div>
 
@@ -1103,7 +1106,8 @@
       <div class="bg-slate-900 text-white p-4 flex justify-between items-center"><h3 class="font-bold text-sm">Tambah Bahan Baku</h3><button onclick="closeAddRawMaterialModal()" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button></div>
       <div class="p-5 space-y-3">
         <input type="hidden" id="edit-raw-id">
-        <div><label class="text-xs font-bold text-slate-600 block mb-1">Nama Bahan:</label><input type="text" id="rm-name-input" class="w-full px-3 py-2 border rounded-xl text-xs font-bold"></div>
+        <div><label class="text-xs font-bold text-slate-600 block mb-1">Nama Barang/Bahan:</label><input type="text" id="rm-name-input" class="w-full px-3 py-2 border rounded-xl text-xs font-bold"></div>
+        <div><label class="text-xs font-bold text-slate-600 block mb-1">Kategori Stok Opname:</label><select id="rm-category-input" class="w-full px-3 py-2 border rounded-xl text-xs font-bold"><option value="">Pilih kategori stok</option></select></div>
         <div class="grid grid-cols-2 gap-3">
           <div><label class="text-xs font-bold text-slate-600 block mb-1">Stok:</label><input type="number" inputmode="numeric" pattern="[0-9]*" id="rm-stock-input" value="100" class="w-full px-3 py-2 border rounded-xl text-xs font-bold"></div>
           <div><label class="text-xs font-bold text-slate-600 block mb-1">Satuan:</label><input type="text" id="rm-unit-input" value="kg" class="w-full px-3 py-2 border rounded-xl text-xs font-bold"></div>
@@ -1128,7 +1132,7 @@
         </div>
         <div>
           <label class="text-xs font-bold text-slate-600 block mb-1">Kategori</label>
-          <input id="product-category-input" type="text" maxlength="50" placeholder="Contoh: Makanan Utama" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm">
+          <select id="product-category-input" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm"><option value="">Pilih kategori menu</option></select>
         </div>
         <div class="grid grid-cols-2 gap-3">
           <div>
@@ -1338,13 +1342,16 @@
 
     async function loadCategoriesFromSupabase() {
       if (!supabaseClient) return;
-      const { data, error } = await supabaseClient.from('categories').select('id,name').order('name').limit(500);
+      const { data, error } = await supabaseClient.from('categories').select('id,name,category_type').order('name').limit(1000);
       if (error) throw error;
-      // Cloud is authoritative, including when the table is intentionally empty.
-      CATEGORIES = (data || []).map(row => String(row.name || '').trim()).filter(Boolean);
+      const rows = (data || []).map(row => ({ id: row.id, name: String(row.name || '').trim(), type: row.category_type === 'stock' ? 'stock' : 'menu' })).filter(row => row.name);
+      MENU_CATEGORIES = rows.filter(row => row.type === 'menu');
+      STOCK_CATEGORIES = rows.filter(row => row.type === 'stock');
+      CATEGORIES = MENU_CATEGORIES.map(row => row.name);
       safeLocalSet('nyonya_categories', CATEGORIES);
       renderCategoriesTable();
       renderCategoryTabs();
+      renderCategoryDropdowns();
     }
     async function loadTablesFromSupabase() {
       if (!supabaseClient) return;
@@ -1422,6 +1429,8 @@
     }
 
     let CATEGORIES = loadLocal('nyonya_categories', ['Makanan Utama', 'Minuman', 'Snack', 'Dessert']);
+    let MENU_CATEGORIES = CATEGORIES.map((name, index) => ({ id: 'local_menu_' + index, name, type: 'menu' }));
+    let STOCK_CATEGORIES = [];
     let TABLES = loadLocal('nyonya_tables', ['Meja 01', 'Meja 02', 'Meja 03', 'Meja 04', 'VIP 1']);
     let MEMBERS = loadLocal('nyonya_members', [{ id: 'm_1', name: 'Bapak Hendra', phone: '08111222333', points: 120 }]);
 
@@ -1667,6 +1676,7 @@
       if (error) throw error;
       RAW_MATERIALS = data || [];
       renderRawMaterialsTable();
+      renderCategoryDropdowns();
     }
 
     async function loadMembersFromSupabase() {
@@ -2370,14 +2380,16 @@
       const tbody = document.getElementById('raw-materials-table-body');
       tbody.innerHTML = RAW_MATERIALS.map(rm => `<tr class="hover:bg-slate-50"><td class="p-3 font-bold">${escapeHtml(rm.name)}</td><td class="p-3 text-slate-500">${escapeHtml(rm.category)}</td><td class="p-3 text-center font-mono font-bold">${escapeHtml(rm.stock)}</td><td class="p-3 text-center text-slate-500">${escapeHtml(rm.unit)}</td><td class="p-3 text-right"><button type="button" data-id="${escapeHtml(rm.id)}" onclick="deleteRawMaterial(this.dataset.id)" class="text-red-500 font-bold">Hapus</button></td></tr>`).join('');
     }
-    function openAddRawMaterialModal() { document.getElementById('add-raw-material-modal').classList.remove('hidden'); }
+    function openAddRawMaterialModal() { renderCategoryDropdowns(); document.getElementById('rm-name-input').value = ''; document.getElementById('rm-stock-input').value = '100'; document.getElementById('rm-unit-input').value = 'kg'; document.getElementById('rm-category-input').value = ''; document.getElementById('add-raw-material-modal').classList.remove('hidden'); }
     function closeAddRawMaterialModal() { document.getElementById('add-raw-material-modal').classList.add('hidden'); }
     async function saveRawMaterial() {
       const name = document.getElementById('rm-name-input').value.trim();
       const stock = parseFloat(document.getElementById('rm-stock-input').value) || 0;
       const unit = document.getElementById('rm-unit-input').value.trim() || 'pcs';
       if(!name || !supabaseClient) return showToast('Nama bahan dan koneksi Supabase wajib tersedia', 'error');
-      const row = { id: 'rm_'+Date.now(), name, category: 'Umum', stock, unit, cost: 10000 };
+      const category = document.getElementById('rm-category-input').value;
+      if (!category) return showToast('Pilih kategori stok opname terlebih dahulu', 'error');
+      const row = { id: 'rm_'+Date.now(), name, category, stock, unit, cost: 10000 };
       const { error } = await supabaseClient.from('raw_materials').insert(row);
       if (error) return showToast('Gagal menyimpan bahan ke Supabase: ' + error.message, 'error');
       RAW_MATERIALS.push(row); safeLocalSet('nyonya_raw_materials', RAW_MATERIALS);
@@ -2449,7 +2461,8 @@
       document.getElementById('product-modal-title').textContent = 'Tambah Menu Baru';
       document.getElementById('edit-product-id').value = '';
       document.getElementById('product-name-input').value = '';
-      document.getElementById('product-category-input').value = 'Makanan Utama';
+      renderCategoryDropdowns();
+      document.getElementById('product-category-input').value = MENU_CATEGORIES.some(row => row.name === 'Makanan Utama') ? 'Makanan Utama' : '';
       document.getElementById('product-price-input').value = '';
       document.getElementById('product-gojek-price-input').value = '';
       document.getElementById('product-grab-price-input').value = '';
@@ -2470,6 +2483,7 @@
       document.getElementById('product-modal-title').textContent = 'Edit Menu';
       document.getElementById('edit-product-id').value = product.id;
       document.getElementById('product-name-input').value = product.name;
+      renderCategoryDropdowns();
       document.getElementById('product-category-input').value = product.category;
       document.getElementById('product-price-input').value = product.price;
       document.getElementById('product-gojek-price-input').value = product.gojek_price || product.price;
@@ -2680,10 +2694,45 @@
     }
 
     function renderCategoriesTable() {
-      const tbody = document.getElementById('categories-table-body');
-      tbody.innerHTML = CATEGORIES.map(c => `<tr><td class="p-3 font-bold">${escapeHtml(c)}</td><td class="p-3 text-right"></td></tr>`).join('');
+      const stockBody = document.getElementById('stock-categories-table-body');
+      const menuBody = document.getElementById('menu-categories-table-body');
+      if (stockBody) stockBody.innerHTML = STOCK_CATEGORIES.map(c => `<tr><td class="p-3 font-bold">${escapeHtml(c.name)}</td></tr>`).join('') || '<tr><td class="p-3 text-slate-400">Belum ada kategori stok.</td></tr>';
+      if (menuBody) menuBody.innerHTML = MENU_CATEGORIES.map(c => `<tr><td class="p-3 font-bold">${escapeHtml(c.name)}</td></tr>`).join('') || '<tr><td class="p-3 text-slate-400">Belum ada kategori menu.</td></tr>';
     }
-    async function addNewCategory() { const v = document.getElementById('new-category-input').value.trim(); if(!v || !supabaseClient) return; const row={id:'cat_'+Date.now(),name:v}; const {error}=await supabaseClient.from('categories').insert(row); if(error) return showToast('Gagal menyimpan kategori: '+error.message,'error'); if (!CATEGORIES.some(name => name.toLocaleLowerCase('id') === v.toLocaleLowerCase('id'))) CATEGORIES.push(v); safeLocalSet('nyonya_categories',CATEGORIES); renderCategoriesTable(); renderCategoryTabs(); document.getElementById('new-category-input').value=''; showToast('Kategori tersimpan di Supabase dan muncul di menu kasir','success'); }
+    function renderCategoryDropdowns() {
+      const productSelect = document.getElementById('product-category-input');
+      const rawSelect = document.getElementById('rm-category-input');
+      const fill = (select, rows, placeholder, currentValue) => {
+        if (!select) return;
+        const selected = currentValue ?? select.value;
+        const names = [...new Set(rows.map(row => row.name).filter(Boolean))];
+        select.innerHTML = '';
+        const first = document.createElement('option'); first.value = ''; first.textContent = placeholder; select.appendChild(first);
+        names.forEach(name => { const option = document.createElement('option'); option.value = name; option.textContent = name; select.appendChild(option); });
+        if (selected && !names.includes(selected)) { const legacy = document.createElement('option'); legacy.value = selected; legacy.textContent = selected + ' (kategori lama)'; select.appendChild(legacy); }
+        select.value = selected || '';
+      };
+      fill(productSelect, [...MENU_CATEGORIES, ...PRODUCTS.map(p => ({name:p.category}))], 'Pilih kategori menu', productSelect?.value);
+      fill(rawSelect, [...STOCK_CATEGORIES, ...RAW_MATERIALS.map(rm => ({name:rm.category}))], 'Pilih kategori stok', rawSelect?.value);
+    }
+    async function addNewCategory(type = 'menu') {
+      const stock = type === 'stock';
+      const input = document.getElementById(stock ? 'new-stock-category-input' : 'new-menu-category-input');
+      const v = input?.value.trim();
+      if (!v) return showToast('Nama kategori wajib diisi', 'error');
+      if (!supabaseClient) return showToast('Supabase belum tersambung', 'error');
+      const existing = (stock ? STOCK_CATEGORIES : MENU_CATEGORIES).some(row => row.name.toLocaleLowerCase('id') === v.toLocaleLowerCase('id'));
+      if (existing) return showToast('Kategori tersebut sudah ada', 'error');
+      const row = { id: 'cat_' + type + '_' + Date.now(), name: v, category_type: type };
+      const { error } = await supabaseClient.from('categories').insert(row);
+      if (error) return showToast('Gagal menyimpan kategori: ' + error.message, 'error');
+      const item = { id: row.id, name: v, type };
+      if (stock) STOCK_CATEGORIES.push(item); else { MENU_CATEGORIES.push(item); CATEGORIES.push(v); }
+      safeLocalSet('nyonya_categories', CATEGORIES);
+      renderCategoriesTable(); renderCategoryTabs(); renderCategoryDropdowns();
+      input.value = '';
+      showToast('Kategori berhasil disimpan dan tersedia di dropdown', 'success');
+    }
 
     function renderTablesTable() {
       const tbody = document.getElementById('tables-table-body');
