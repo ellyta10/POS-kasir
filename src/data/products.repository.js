@@ -1,6 +1,6 @@
 /* Product data access layer. UI code should not need to know table/query details. */
 (function attachProductsRepository(global) {
-  const PRODUCT_SELECT = 'id, name, category, price, gojek_price, grab_price, emoji, available, recipe, hpp_mode, manual_hpp';
+  const PRODUCT_SELECT = 'id, name, category, price, gojek_price, grab_price, emoji, available, is_active, recipe, hpp_mode, manual_hpp';
 
   function normalizeProduct(product) {
     return {
@@ -12,6 +12,7 @@
       grab_price: Number(product.grab_price) || Number(product.price) || 0,
       emoji: product.emoji || '🍽️',
       available: product.available !== false,
+      is_active: product.is_active !== false,
       recipe: product.recipe || [],
       hpp_mode: product.hpp_mode === 'manual' ? 'manual' : 'auto',
       manual_hpp: product.manual_hpp === null || product.manual_hpp === undefined || product.manual_hpp === '' ? null : Number(product.manual_hpp)
@@ -26,6 +27,7 @@
     return client
       .from('products')
       .select(PRODUCT_SELECT)
+      .eq('is_active', true)
       .order('name')
       .limit(500);
   }
