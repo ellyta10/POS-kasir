@@ -1737,7 +1737,7 @@
 
     async function loadRawMaterialsFromSupabase() {
       if (!supabaseClient) return;
-      const { data, error } = await supabaseClient.from('raw_materials').select('id,name,category,stock,unit,cost').order('name').limit(500);
+      const { data, error } = await supabaseClient.from('raw_materials').select('id,name,category,stock,unit,cost,is_active').eq('is_active', true).order('name').limit(500);
       if (error) throw error;
       RAW_MATERIALS = data || [];
       renderRawMaterialsTable();
@@ -2454,7 +2454,7 @@
       if(!name || !supabaseClient) return showToast('Nama bahan dan koneksi Supabase wajib tersedia', 'error');
       const category = document.getElementById('rm-category-input').value;
       if (!category) return showToast('Pilih kategori stok opname terlebih dahulu', 'error');
-      const row = { id: 'rm_'+Date.now(), name, category, stock, unit, cost: 10000 };
+      const row = { id: 'rm_'+Date.now(), name, category, stock, unit, cost: 10000, is_active: true };
       const { error } = await supabaseClient.from('raw_materials').insert(row);
       if (error) return showToast('Gagal menyimpan bahan ke Supabase: ' + error.message, 'error');
       RAW_MATERIALS.push(row); safeLocalSet('nyonya_raw_materials', RAW_MATERIALS);
@@ -2462,10 +2462,25 @@
     }
     async function deleteRawMaterial(id) {
       if (!supabaseClient) return showToast('Supabase belum tersambung', 'error');
-      if (!confirm('Hapus bahan ini dari Supabase?')) return;
-      const { error } = await supabaseClient.from('raw_materials').delete().eq('id', id);
-      if (error) return showToast(/foreign key|constraint/i.test(error.message || '') ? 'Bahan ini masih dipakai dalam riwayat stok atau pergerakan inventori. Hapus referensi resep/pergerakan terlebih dahulu; data historis tidak dihapus otomatis.' : 'Gagal menghapus bahan: ' + error.message, 'error');
-      RAW_MATERIALS = RAW_MATERIALS.filter(r => r.id !== id); safeLocalSet('nyonya_raw_materials', RAW_MATERIALS); renderRawMaterialsTable(); showToast('Bahan dihapus dari Supabase', 'success');
+      const material = RAW_MATERIALS.find(row => String(row.id) === String(id));
+      if (!material) return showToast('Bahan baku tidak ditemukan', 'error');
+      if (!confirm(`Hapus bahan "${material.name}" dari daftar aktif? Riwayat stok tetap disimpan.`)) return;
+      // Remove this material from current product recipes, while historical order snapshots remain untouched.
+      for (const product of PRODUCTS) {
+        const recipe = Array.isArray(product.recipe) ? product.recipe : [];
+        const nextRecipe = recipe.filter(item => String(item.raw_material_id ?? item.material_id ?? item.id) !== String(id));
+        if (nextRecipe.length !== recipe.length) {
+          const { error: recipeError } = await supabaseClient.from('products').update({ recipe: nextRecipe }).eq('id', product.id);
+          if (recipeError) return showToast('Gagal melepas bahan dari resep menu: ' + recipeError.message, 'error');
+          product.recipe = nextRecipe;
+        }
+      }
+      const { error } = await supabaseClient.from('raw_materials').update({ is_active: false }).eq('id', id);
+      if (error) return showToast('Gagal menghapus bahan: ' + error.message, 'error');
+      RAW_MATERIALS = RAW_MATERIALS.filter(row => String(row.id) !== String(id));
+      safeLocalSet('nyonya_raw_materials', RAW_MATERIALS); safeLocalSet('nyonya_products', PRODUCTS);
+      renderRawMaterialsTable(); renderMenuManagementTable(); updateProductRecipeCost();
+      showToast('Bahan dihapus dari daftar aktif. Riwayat stok tetap aman.', 'success');
     }
 
     function renderProductsTable() {
@@ -2755,7 +2770,15 @@
       } catch (error) {
         console.error('Gagal menghapus menu:', error);
         const msg = String(error?.message || 'Kesalahan tidak diketahui');
-        showToast(/foreign key|constraint/i.test(msg) ? 'Menu ini sudah tercatat di riwayat transaksi dan tidak bisa dihapus permanen. Nonaktifkan menu agar tidak dijual lagi.' : 'Gagal menghapus menu: ' + msg, 'error');
+        if (/foreign key|constraint/i.test(msg)) {
+          const { error: archiveError } = await supabaseClient.from('products').update({ available: false }).eq('id', id);
+          if (archiveError) return showToast('Menu punya riwayat transaksi dan gagal dinonaktifkan: ' + archiveError.message, 'error');
+          PRODUCTS = PRODUCTS.map(item => String(item.id) === String(id) ? { ...item, available: false } : item);
+          safeLocalSet('nyonya_products', PRODUCTS); renderProducts(); renderProductsTable(); renderMenuManagementTable();
+          showToast('Menu memiliki riwayat transaksi, jadi diarsipkan/nonaktif agar riwayat tetap utuh dan tidak muncul untuk penjualan.', 'success');
+          return;
+        }
+        showToast('Gagal menghapus menu: ' + msg, 'error');
       }
     }
 
@@ -2870,10 +2893,11 @@
       if (!name) return showToast('Nama meja tidak boleh kosong', 'error');
       if (TABLE_ROWS.some(row => String(row.id) !== String(id) && row.name.toLocaleLowerCase('id') === name.toLocaleLowerCase('id'))) return showToast('Nama meja sudah digunakan', 'error');
       if (ACTIVE_BILLS?.[table.name] || (currentTable === table.name && CART.length)) return showToast('Meja ini sedang memiliki pesanan aktif. Pindahkan/selesaikan pesanan terlebih dahulu sebelum mengganti nama.', 'error');
+      const oldName = table.name;
       const { error } = await window.POSTablesRepository.update(supabaseClient, id, name);
       if (error) return showToast('Gagal mengubah meja: ' + error.message, 'error');
       table.name = name; TABLES = TABLE_ROWS.map(row => row.name); safeLocalSet('nyonya_tables', TABLES);
-      if (currentTable === table.name) currentTable = name;
+      if (currentTable === oldName) currentTable = name;
       renderTablesTable(); renderTableOptions(); showToast('Nama meja berhasil diubah', 'success');
     }
     async function deleteTable(id) {
