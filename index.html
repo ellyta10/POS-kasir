@@ -2468,7 +2468,7 @@
       // Remove this material from current product recipes, while historical order snapshots remain untouched.
       for (const product of PRODUCTS) {
         const recipe = Array.isArray(product.recipe) ? product.recipe : [];
-        const nextRecipe = recipe.filter(item => String(item.raw_material_id ?? item.material_id ?? item.id) !== String(id));
+        const nextRecipe = recipe.filter(item => String(item.raw_material_id ?? item.material_id ?? item.rawId ?? item.raw_id ?? item.id) !== String(id));
         if (nextRecipe.length !== recipe.length) {
           const { error: recipeError } = await supabaseClient.from('products').update({ recipe: nextRecipe }).eq('id', product.id);
           if (recipeError) return showToast('Gagal melepas bahan dari resep menu: ' + recipeError.message, 'error');
@@ -2757,15 +2757,16 @@
         return;
       }
       try {
-        const { error } = await window.POSProductsRepository.remove(supabaseClient, id);
+        // Soft-delete: pertahankan transaksi lama, tetapi hilangkan menu dari daftar aktif.
+        const { error } = await supabaseClient.from('products').update({ is_active: false, available: false, updated_at: new Date().toISOString() }).eq('id', id);
         if (error) throw error;
-        PRODUCTS = PRODUCTS.filter(item => item.id !== id);
+        PRODUCTS = PRODUCTS.filter(item => String(item.id) !== String(id));
         safeLocalSet('nyonya_products', PRODUCTS);
         renderCategoryTabs();
         renderProducts();
         renderProductsTable();
         renderMenuManagementTable();
-        showToast('Menu berhasil dihapus', 'success');
+        showToast('Menu dihapus dari daftar aktif dan tidak akan muncul di kasir.', 'success');
         await logAudit('delete_product', 'product', id, { name: product.name });
       } catch (error) {
         console.error('Gagal menghapus menu:', error);
