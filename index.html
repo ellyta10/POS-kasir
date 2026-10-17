@@ -2,7 +2,7 @@
 <html lang="id">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no, viewport-fit=cover">
   <title>Kasir POS Nyonya Terasi Tiban</title>
   <!--
     PERBAIKAN BATCH 1 (Phase A, frontend):
@@ -300,10 +300,10 @@
     }
 
   
-    /* Mobile usability fix: keep pinch zoom available and prevent legacy bottom navigation from reappearing. */
-    html, body { touch-action: pan-x pan-y pinch-zoom; }
+    /* Mobile POS: lock page zoom to keep the interface fit-to-screen. */
+    html, body { touch-action: pan-x pan-y; }
     @media (max-width: 1023px) {
-      html, body { touch-action: pan-x pan-y pinch-zoom; }
+      html, body { touch-action: pan-x pan-y; }
     }
     #mobile-bottom-nav { display: none !important; }
     @media (max-width: 767px) {
