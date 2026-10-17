@@ -963,12 +963,12 @@
             <section class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm space-y-3">
               <div><h4 class="font-extrabold text-sm text-slate-800">📦 Kategori Stok Opname Barang</h4><p class="text-xs text-slate-500 mt-1">Untuk bahan baku dan barang yang dicatat stoknya.</p></div>
               <div class="flex gap-2"><input type="text" id="new-stock-category-input" placeholder="Contoh: Bahan Kemasan" class="min-w-0 flex-1 px-3 py-2 border border-slate-200 rounded-xl text-xs font-bold"><button onclick="addNewCategory('stock')" class="px-4 py-2 bg-brand-600 text-white text-xs font-bold rounded-xl">+ Tambah</button></div>
-              <div class="overflow-x-auto rounded-xl border border-slate-200"><table class="w-full text-left text-xs"><thead><tr class="bg-slate-100 text-slate-600 uppercase text-[10px]"><th class="p-3">Kategori Stok</th></tr></thead><tbody id="stock-categories-table-body" class="divide-y divide-slate-100"></tbody></table></div>
+              <div class="overflow-x-auto rounded-xl border border-slate-200"><table class="w-full text-left text-xs"><thead><tr class="bg-slate-100 text-slate-600 uppercase text-[10px]"><th class="p-3">Kategori Stok</th><th class="p-3 text-right">Aksi</th></tr></thead><tbody id="stock-categories-table-body" class="divide-y divide-slate-100"></tbody></table></div>
             </section>
             <section class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm space-y-3">
               <div><h4 class="font-extrabold text-sm text-slate-800">🍽️ Kategori Kelola Menu dan Resep</h4><p class="text-xs text-slate-500 mt-1">Untuk mengelompokkan menu yang dijual.</p></div>
               <div class="flex gap-2"><input type="text" id="new-menu-category-input" placeholder="Contoh: Makanan Utama" class="min-w-0 flex-1 px-3 py-2 border border-slate-200 rounded-xl text-xs font-bold"><button onclick="addNewCategory('menu')" class="px-4 py-2 bg-brand-600 text-white text-xs font-bold rounded-xl">+ Tambah</button></div>
-              <div class="overflow-x-auto rounded-xl border border-slate-200"><table class="w-full text-left text-xs"><thead><tr class="bg-slate-100 text-slate-600 uppercase text-[10px]"><th class="p-3">Kategori Menu</th></tr></thead><tbody id="menu-categories-table-body" class="divide-y divide-slate-100"></tbody></table></div>
+              <div class="overflow-x-auto rounded-xl border border-slate-200"><table class="w-full text-left text-xs"><thead><tr class="bg-slate-100 text-slate-600 uppercase text-[10px]"><th class="p-3">Kategori Menu</th><th class="p-3 text-right">Aksi</th></tr></thead><tbody id="menu-categories-table-body" class="divide-y divide-slate-100"></tbody></table></div>
             </section>
           </div>
         </div>
@@ -1386,8 +1386,9 @@
       if (!supabaseClient) return;
       const { data, error } = await window.POSTablesRepository.list(supabaseClient);
       if (error) throw error;
+      TABLE_ROWS = (data || []).map(window.POSTablesRepository.normalizeTable);
       if (data?.length) {
-        TABLES = data.map(window.POSTablesRepository.normalizeTable).map(row => row.name);
+        TABLES = TABLE_ROWS.map(row => row.name);
         safeLocalSet('nyonya_tables', TABLES);
         if (!TABLES.includes(currentTable)) currentTable = TABLES[0];
         renderTableOptions();
@@ -1461,6 +1462,7 @@
     let MENU_CATEGORIES = CATEGORIES.map((name, index) => ({ id: 'local_menu_' + index, name, type: 'menu' }));
     let STOCK_CATEGORIES = [];
     let TABLES = loadLocal('nyonya_tables', ['Meja 01', 'Meja 02', 'Meja 03', 'Meja 04', 'VIP 1']);
+    let TABLE_ROWS = [];
     let MEMBERS = loadLocal('nyonya_members', [{ id: 'm_1', name: 'Bapak Hendra', phone: '08111222333', points: 120 }]);
 
     let CART = [];
@@ -2462,7 +2464,7 @@
       if (!supabaseClient) return showToast('Supabase belum tersambung', 'error');
       if (!confirm('Hapus bahan ini dari Supabase?')) return;
       const { error } = await supabaseClient.from('raw_materials').delete().eq('id', id);
-      if (error) return showToast('Gagal menghapus bahan: ' + error.message, 'error');
+      if (error) return showToast(/foreign key|constraint/i.test(error.message || '') ? 'Bahan ini masih dipakai dalam riwayat stok atau pergerakan inventori. Hapus referensi resep/pergerakan terlebih dahulu; data historis tidak dihapus otomatis.' : 'Gagal menghapus bahan: ' + error.message, 'error');
       RAW_MATERIALS = RAW_MATERIALS.filter(r => r.id !== id); safeLocalSet('nyonya_raw_materials', RAW_MATERIALS); renderRawMaterialsTable(); showToast('Bahan dihapus dari Supabase', 'success');
     }
 
@@ -2752,15 +2754,17 @@
         await logAudit('delete_product', 'product', id, { name: product.name });
       } catch (error) {
         console.error('Gagal menghapus menu:', error);
-        showToast('Gagal menghapus menu: ' + error.message, 'error');
+        const msg = String(error?.message || 'Kesalahan tidak diketahui');
+        showToast(/foreign key|constraint/i.test(msg) ? 'Menu ini sudah tercatat di riwayat transaksi dan tidak bisa dihapus permanen. Nonaktifkan menu agar tidak dijual lagi.' : 'Gagal menghapus menu: ' + msg, 'error');
       }
     }
 
     function renderCategoriesTable() {
       const stockBody = document.getElementById('stock-categories-table-body');
       const menuBody = document.getElementById('menu-categories-table-body');
-      if (stockBody) stockBody.innerHTML = STOCK_CATEGORIES.map(c => `<tr><td class="p-3 font-bold">${escapeHtml(c.name)}</td></tr>`).join('') || '<tr><td class="p-3 text-slate-400">Belum ada kategori stok.</td></tr>';
-      if (menuBody) menuBody.innerHTML = MENU_CATEGORIES.map(c => `<tr><td class="p-3 font-bold">${escapeHtml(c.name)}</td></tr>`).join('') || '<tr><td class="p-3 text-slate-400">Belum ada kategori menu.</td></tr>';
+      const renderRows = (rows, type) => rows.map(row => `<tr><td class="p-3 font-bold">${escapeHtml(row.name)}</td><td class="p-3 text-right whitespace-nowrap"><button type="button" data-id="${escapeHtml(row.id)}" data-type="${type}" onclick="editCategory(this.dataset.id,this.dataset.type)" class="text-indigo-600 font-bold mr-3">Edit</button><button type="button" data-id="${escapeHtml(row.id)}" data-type="${type}" onclick="deleteCategory(this.dataset.id,this.dataset.type)" class="text-red-600 font-bold">Hapus</button></td></tr>`).join('');
+      if (stockBody) stockBody.innerHTML = renderRows(STOCK_CATEGORIES, 'stock') || '<tr><td colspan="2" class="p-3 text-slate-400">Belum ada kategori stok.</td></tr>';
+      if (menuBody) menuBody.innerHTML = renderRows(MENU_CATEGORIES, 'menu') || '<tr><td colspan="2" class="p-3 text-slate-400">Belum ada kategori menu.</td></tr>';
     }
     function renderCategoryDropdowns() {
       const productSelect = document.getElementById('product-category-input');
@@ -2777,6 +2781,49 @@
       };
       fill(productSelect, [...MENU_CATEGORIES, ...PRODUCTS.map(p => ({name:p.category}))], 'Pilih kategori menu', productSelect?.value);
       fill(rawSelect, [...STOCK_CATEGORIES, ...RAW_MATERIALS.map(rm => ({name:rm.category}))], 'Pilih kategori stok', rawSelect?.value);
+    }
+    async function editCategory(id, type = 'menu') {
+      const rows = type === 'stock' ? STOCK_CATEGORIES : MENU_CATEGORIES;
+      const category = rows.find(row => String(row.id) === String(id));
+      if (!category) return showToast('Kategori tidak ditemukan', 'error');
+      const next = prompt('Masukkan nama kategori baru:', category.name);
+      if (next === null) return;
+      const name = next.trim();
+      if (!name) return showToast('Nama kategori tidak boleh kosong', 'error');
+      if (rows.some(row => String(row.id) !== String(id) && row.name.toLocaleLowerCase('id') === name.toLocaleLowerCase('id'))) return showToast('Nama kategori sudah digunakan', 'error');
+      if (!supabaseClient) return showToast('Supabase belum tersambung', 'error');
+      const { error } = await supabaseClient.from('categories').update({ name }).eq('id', id);
+      if (error) return showToast('Gagal mengubah kategori: ' + error.message, 'error');
+      if (type === 'stock') {
+        const { error: materialError } = await supabaseClient.from('raw_materials').update({ category: name }).eq('category', category.name);
+        if (materialError) { showToast('Nama kategori tersimpan, tetapi gagal memperbarui kategori bahan: ' + materialError.message, 'error'); }
+        else RAW_MATERIALS.forEach(item => { if (item.category === category.name) item.category = name; });
+      } else {
+        const { error: productError } = await supabaseClient.from('products').update({ category: name }).eq('category', category.name);
+        if (productError) { showToast('Nama kategori tersimpan, tetapi gagal memperbarui kategori menu: ' + productError.message, 'error'); }
+        else PRODUCTS.forEach(item => { if (item.category === category.name) item.category = name; });
+      }
+      category.name = name;
+      if (type === 'menu') CATEGORIES = MENU_CATEGORIES.map(row => row.name);
+      safeLocalSet('nyonya_categories', CATEGORIES); safeLocalSet('nyonya_products', PRODUCTS); safeLocalSet('nyonya_raw_materials', RAW_MATERIALS);
+      renderCategoriesTable(); renderCategoryTabs(); renderCategoryDropdowns(); renderProducts(); renderProductsTable(); renderMenuManagementTable(); renderRawMaterialsTable();
+      showToast('Nama kategori berhasil diubah', 'success');
+    }
+    async function deleteCategory(id, type = 'menu') {
+      const rows = type === 'stock' ? STOCK_CATEGORIES : MENU_CATEGORIES;
+      const category = rows.find(row => String(row.id) === String(id));
+      if (!category) return showToast('Kategori tidak ditemukan', 'error');
+      const used = type === 'stock'
+        ? RAW_MATERIALS.some(item => item.category === category.name)
+        : PRODUCTS.some(item => item.category === category.name);
+      if (used) return showToast(type === 'stock' ? 'Kategori masih dipakai bahan baku. Ubah kategori bahan tersebut terlebih dahulu.' : 'Kategori masih dipakai menu. Ubah kategori menu tersebut terlebih dahulu.', 'error');
+      if (!confirm(`Hapus kategori "${category.name}"?`)) return;
+      const { error } = await supabaseClient.from('categories').delete().eq('id', id);
+      if (error) return showToast('Gagal menghapus kategori: ' + error.message, 'error');
+      if (type === 'stock') STOCK_CATEGORIES = STOCK_CATEGORIES.filter(row => String(row.id) !== String(id));
+      else MENU_CATEGORIES = MENU_CATEGORIES.filter(row => String(row.id) !== String(id));
+      CATEGORIES = MENU_CATEGORIES.map(row => row.name); safeLocalSet('nyonya_categories', CATEGORIES);
+      renderCategoriesTable(); renderCategoryTabs(); renderCategoryDropdowns(); showToast('Kategori berhasil dihapus', 'success');
     }
     async function addNewCategory(type = 'menu') {
       const stock = type === 'stock';
@@ -2799,9 +2846,47 @@
 
     function renderTablesTable() {
       const tbody = document.getElementById('tables-table-body');
-      tbody.innerHTML = TABLES.map(t => `<tr><td class="p-3 font-bold">${escapeHtml(t)}</td><td class="p-3 text-right"></td></tr>`).join('');
+      tbody.innerHTML = TABLE_ROWS.map(t => `<tr><td class="p-3 font-bold">${escapeHtml(t.name)}</td><td class="p-3 text-right whitespace-nowrap"><button type="button" data-id="${escapeHtml(t.id)}" onclick="editTable(this.dataset.id)" class="text-indigo-600 font-bold mr-3">Edit</button><button type="button" data-id="${escapeHtml(t.id)}" onclick="deleteTable(this.dataset.id)" class="text-red-600 font-bold">Hapus</button></td></tr>`).join('') || '<tr><td colspan="2" class="p-3 text-slate-400">Belum ada meja.</td></tr>';
     }
-    async function addNewTable() { const v = document.getElementById('new-table-input').value.trim(); if(!v || !supabaseClient) return; const row={id:'table_'+Date.now(),name:v}; const {error}=await window.POSTablesRepository.create(supabaseClient, row); if(error) return showToast('Gagal menyimpan meja: '+error.message,'error'); TABLES.push(v); safeLocalSet('nyonya_tables',TABLES); renderTablesTable(); renderTableOptions(); showToast('Meja tersimpan di Supabase','success'); }
+    async function addNewTable() {
+      const input = document.getElementById('new-table-input');
+      const v = input.value.trim();
+      if (!v) return showToast('Nama meja wajib diisi', 'error');
+      if (!supabaseClient) return showToast('Supabase belum tersambung', 'error');
+      if (TABLES.some(name => name.toLocaleLowerCase('id') === v.toLocaleLowerCase('id'))) return showToast('Nama meja sudah digunakan', 'error');
+      const row = { id: 'table_' + Date.now(), name: v };
+      const { error } = await window.POSTablesRepository.create(supabaseClient, row);
+      if (error) return showToast('Gagal menyimpan meja: ' + error.message, 'error');
+      TABLE_ROWS.push(row); TABLES = TABLE_ROWS.map(t => t.name);
+      safeLocalSet('nyonya_tables', TABLES); input.value = '';
+      renderTablesTable(); renderTableOptions(); showToast('Meja tersimpan di Supabase', 'success');
+    }
+    async function editTable(id) {
+      const table = TABLE_ROWS.find(row => String(row.id) === String(id));
+      if (!table) return showToast('Data meja tidak ditemukan. Muat ulang daftar meja.', 'error');
+      const next = prompt('Masukkan nama meja baru:', table.name);
+      if (next === null) return;
+      const name = next.trim();
+      if (!name) return showToast('Nama meja tidak boleh kosong', 'error');
+      if (TABLE_ROWS.some(row => String(row.id) !== String(id) && row.name.toLocaleLowerCase('id') === name.toLocaleLowerCase('id'))) return showToast('Nama meja sudah digunakan', 'error');
+      if (ACTIVE_BILLS?.[table.name] || (currentTable === table.name && CART.length)) return showToast('Meja ini sedang memiliki pesanan aktif. Pindahkan/selesaikan pesanan terlebih dahulu sebelum mengganti nama.', 'error');
+      const { error } = await window.POSTablesRepository.update(supabaseClient, id, name);
+      if (error) return showToast('Gagal mengubah meja: ' + error.message, 'error');
+      table.name = name; TABLES = TABLE_ROWS.map(row => row.name); safeLocalSet('nyonya_tables', TABLES);
+      if (currentTable === table.name) currentTable = name;
+      renderTablesTable(); renderTableOptions(); showToast('Nama meja berhasil diubah', 'success');
+    }
+    async function deleteTable(id) {
+      const table = TABLE_ROWS.find(row => String(row.id) === String(id));
+      if (!table) return showToast('Data meja tidak ditemukan. Muat ulang daftar meja.', 'error');
+      if (ACTIVE_BILLS?.[table.name] || (currentTable === table.name && CART.length)) return showToast('Meja ini sedang memiliki pesanan aktif. Selesaikan atau pindahkan pesanan sebelum menghapus meja.', 'error');
+      if (!confirm(`Hapus ${table.name}? Tindakan ini tidak dapat dibatalkan.`)) return;
+      const { error } = await window.POSTablesRepository.remove(supabaseClient, id);
+      if (error) return showToast('Gagal menghapus meja: ' + error.message, 'error');
+      TABLE_ROWS = TABLE_ROWS.filter(row => String(row.id) !== String(id)); TABLES = TABLE_ROWS.map(row => row.name);
+      safeLocalSet('nyonya_tables', TABLES); if (!TABLES.includes(currentTable)) currentTable = TABLES[0] || '';
+      renderTablesTable(); renderTableOptions(); showToast('Meja berhasil dihapus', 'success');
+    }
 
     async function saveStoreSettings() {
       storeConfig.name = document.getElementById('setting-store-name').value.trim() || DEFAULT_STORE_CONFIG.name;
