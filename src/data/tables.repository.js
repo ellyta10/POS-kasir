@@ -23,10 +23,26 @@
       .insert(table);
   }
 
+  function update(client, id, name) {
+    return client
+      .from('restaurant_tables')
+      .update({ name })
+      .eq('id', id);
+  }
+
+  function remove(client, id) {
+    return client
+      .from('restaurant_tables')
+      .delete()
+      .eq('id', id);
+  }
+
   global.POSTablesRepository = Object.freeze({
     TABLE_SELECT,
     normalizeTable,
     list,
-    create
+    create,
+    update,
+    remove
   });
 })(window);
