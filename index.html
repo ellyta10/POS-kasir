@@ -300,6 +300,26 @@
     }
 
   
+    /* Mobile usability fix: keep pinch zoom available and prevent legacy bottom navigation from reappearing. */
+    html, body { touch-action: pan-x pan-y pinch-zoom; }
+    @media (max-width: 1023px) {
+      html, body { touch-action: pan-x pan-y pinch-zoom; }
+    }
+    #mobile-bottom-nav { display: none !important; }
+    @media (max-width: 767px) {
+      #mobile-bottom-nav { display: none !important; }
+      /* Allow the active modal's own content area to scroll instead of trapping the whole screen. */
+      #management-modal, #reports-modal,
+      #recall-bills-modal, #shift-modal, #void-transaction-modal,
+      #add-member-modal, #user-switch-modal, #add-raw-material-modal,
+      #add-product-modal, #move-table-modal, #receipt-modal, #kitchen-ticket-modal {
+        overscroll-behavior: auto;
+      }
+      #management-modal > div, #reports-modal > div {
+        -webkit-overflow-scrolling: touch;
+      }
+    }
+
     /* Mobile navigation refinement: primary navigation above search, not duplicated at the bottom. */
     #mobile-top-nav { display:none; }
     @media (max-width: 767px) {
