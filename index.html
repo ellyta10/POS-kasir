@@ -304,7 +304,7 @@
     #mobile-top-nav { display:none; }
     @media (max-width: 767px) {
       #mobile-top-nav {
-        display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:.35rem;
+        display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:.35rem;
         padding:.5rem .65rem; background:#fff; border-bottom:1px solid #e2e8f0;
       }
       #mobile-top-nav button {
@@ -313,6 +313,8 @@
         border-radius:.75rem; background:#f8fafc; color:#475569; font-size:.7rem; font-weight:700;
       }
       #mobile-top-nav button i { font-size:1rem; }
+      #mobile-top-nav button span { white-space:nowrap; }
+      #mobile-top-nav .mobile-admin-nav[hidden] { display:none !important; }
       #mobile-top-nav button:active { background:#fff7ed; border-color:#fdba74; color:#c2410c; }
       main { padding-bottom:0 !important; }
       #cart-panel { bottom:0 !important; height:76dvh !important; max-height:76dvh !important; }
@@ -404,12 +406,23 @@
   <main class="flex-1 flex flex-col lg:flex-row min-h-0 overflow-hidden">
     <!-- LEFT PANEL: CATALOG & SEARCH -->
     <section class="flex-1 flex flex-col bg-slate-100 border-r border-slate-200 min-w-0">
-      <!-- MOBILE PRIMARY NAVIGATION: ABOVE PRODUCT SEARCH -->
+      <!-- MOBILE PRIMARY NAVIGATION: ROLE-BASED POS ACTIONS -->
       <nav id="mobile-top-nav" aria-label="Navigasi utama kasir">
-        <button type="button" onclick="document.getElementById('product-search-input')?.focus(); document.querySelector('#product-grid')?.parentElement?.scrollTo({top:0,behavior:'smooth'});" aria-label="Menu"><i class="fa-solid fa-utensils"></i><span>Menu</span></button>
-        <button type="button" onclick="toggleMobileCart()" aria-label="Keranjang"><i class="fa-solid fa-basket-shopping"></i><span>Keranjang</span></button>
-        <button type="button" onclick="checkAdminAccess('reports')" aria-label="Laporan"><i class="fa-solid fa-chart-column"></i><span>Laporan</span></button>
-        <button type="button" onclick="openShiftModal()" aria-label="Shift kasir"><i class="fa-solid fa-cash-register"></i><span>Shift</span></button>
+        <button type="button" id="mobile-nav-bills" onclick="openRecallBillsModal()" aria-label="Bill aktif">
+          <i class="fa-solid fa-receipt"></i><span>Bill <span id="mobile-active-bills-count">0</span></span>
+        </button>
+        <button type="button" id="mobile-nav-void" onclick="openVoidModal()" aria-label="Void transaksi">
+          <i class="fa-solid fa-ban"></i><span>Void</span>
+        </button>
+        <button type="button" id="mobile-nav-shift" onclick="openShiftModal()" aria-label="Shift kasir">
+          <i class="fa-solid fa-cash-register"></i><span>Shift</span>
+        </button>
+        <button type="button" id="mobile-nav-stock-menu" class="mobile-admin-nav" onclick="checkAdminAccess('management')" aria-label="Stok dan menu">
+          <i class="fa-solid fa-boxes-stacked"></i><span>Stok &amp; Menu</span>
+        </button>
+        <button type="button" id="mobile-nav-reports" class="mobile-admin-nav" onclick="checkAdminAccess('reports')" aria-label="Laporan">
+          <i class="fa-solid fa-chart-column"></i><span>Laporan</span>
+        </button>
       </nav>
 
       <!-- SEARCH & CATEGORY BAR -->
@@ -1692,6 +1705,31 @@
     function updateCartQty(idx, delta) { CART[idx].qty += delta; if(CART[idx].qty <= 0) CART.splice(idx, 1); renderCart(); }
     function updateCartNotes(idx, val) { CART[idx].notes = val; }
     function removeFromCart(idx) { CART.splice(idx, 1); renderCart(); }
+
+    // Keep the mobile action bar aligned with the authenticated role.
+    function syncMobileTopNavRole() {
+      const isAdmin = currentUserRole === 'admin';
+      document.querySelectorAll('#mobile-top-nav .mobile-admin-nav').forEach((button) => {
+        button.hidden = !isAdmin;
+      });
+    }
+
+    // Mirror the active-bill count in the mobile navigation.
+    function syncMobileActiveBillsCount() {
+      const source = document.getElementById('active-bills-count');
+      const target = document.getElementById('mobile-active-bills-count');
+      if (source && target) target.textContent = source.textContent || '0';
+    }
+
+    // Role and bill count can change after login or refresh; observe their existing UI sources.
+    document.addEventListener('DOMContentLoaded', () => {
+      syncMobileTopNavRole();
+      syncMobileActiveBillsCount();
+      const roleBadge = document.getElementById('header-user-role-badge');
+      if (roleBadge) new MutationObserver(syncMobileTopNavRole).observe(roleBadge, { childList: true, characterData: true, subtree: true });
+      const billCount = document.getElementById('active-bills-count');
+      if (billCount) new MutationObserver(syncMobileActiveBillsCount).observe(billCount, { childList: true, characterData: true, subtree: true });
+    });
 
     function toggleMobileHeaderMenu(force) {
       const actions = document.querySelector('.app-header-actions');
