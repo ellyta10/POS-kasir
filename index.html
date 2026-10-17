@@ -594,7 +594,7 @@
             <div class="payment-summary-lines border-t mt-4 pt-4 space-y-2 text-sm">
               <div class="flex justify-between text-slate-500"><span>Subtotal</span><b id="cart-subtotal" class="font-mono text-slate-700">Rp 0</b></div>
               <div id="tax-row" class="flex justify-between items-center text-slate-500"><label class="flex items-center gap-2"><span>Pajak Resto (PB1 10%)</span><input type="checkbox" id="tax-toggle-checkbox" onchange="renderCart()" class="w-4 h-4 text-brand-600 rounded border-slate-300 focus:ring-brand-500 cursor-pointer"></label><b id="cart-tax" class="font-mono text-slate-700">Rp 0</b></div>
-              <div id="service-charge-row" class="flex justify-between items-center text-slate-500"><span>Biaya Layanan (Service)</span><select id="service-charge-select" onchange="renderCart()" class="text-xs bg-slate-100 border border-slate-200 rounded-lg px-2 py-1 font-semibold text-slate-700"><option value="0">0% (Tanpa)</option><option value="0.05">5%</option><option value="0.07" selected>7%</option></select></div>
+              <div id="service-charge-row" class="flex justify-between items-center text-slate-500"><span>Biaya Layanan (Service)</span><select id="service-charge-select" onchange="renderCart()" class="text-xs bg-slate-100 border border-slate-200 rounded-lg px-2 py-1 font-semibold text-slate-700"><option value="0" selected>0% (Tanpa)</option><option value="0.05">5%</option><option value="0.07">7%</option></select></div>
               <div class="flex justify-between items-center text-slate-500"><span>Diskon Promo</span><select id="discount-select" onchange="renderCart()" class="text-xs bg-slate-100 border border-slate-200 rounded-lg px-2 py-1 font-semibold text-slate-700"><option value="0">0% (Normal)</option><option value="0.05">5%</option><option value="0.10">10%</option><option value="0.15">15%</option><option value="0.20">20%</option></select></div>
               <div id="member-point-discount-row" class="hidden flex justify-between text-emerald-600 font-medium"><span id="member-point-label">Potongan Poin Member</span><span id="cart-member-discount" class="font-mono font-bold">- Rp 0</span></div>
               <div class="pt-3 border-t border-slate-200 flex justify-between items-center text-lg font-black text-slate-900"><span>GRAND TOTAL</span><span id="cart-grand-total" class="font-mono text-xl text-brand-600">Rp 0</span></div>
@@ -781,13 +781,13 @@
         </div>
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 items-end">
           <label class="text-xs font-bold text-slate-600">Kas awal
-            <input id="shift-opening-cash" type="number" min="0" step="1000" value="500000" class="mt-1 w-full px-3 py-2 border border-slate-200 rounded-xl font-mono">
+            <input id="shift-opening-cash" type="text" inputmode="numeric" autocomplete="off" oninput="formatCurrencyInput(this)" value="500.000" class="mt-1 w-full px-3 py-2 border border-slate-200 rounded-xl font-mono">
           </label>
           <button onclick="startCashSession()" class="px-4 py-2 bg-emerald-600 text-white text-xs font-bold rounded-xl">Buka Shift</button>
         </div>
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 items-end">
           <label class="text-xs font-bold text-slate-600">Kas fisik saat tutup
-            <input id="shift-closing-cash" type="number" min="0" step="1000" placeholder="Masukkan kas aktual" class="mt-1 w-full px-3 py-2 border border-slate-200 rounded-xl font-mono">
+            <input id="shift-closing-cash" type="text" inputmode="numeric" autocomplete="off" oninput="formatCurrencyInput(this)" placeholder="Masukkan kas aktual" class="mt-1 w-full px-3 py-2 border border-slate-200 rounded-xl font-mono">
           </label>
           <button onclick="finishCashSession()" class="px-4 py-2 bg-red-600 text-white text-xs font-bold rounded-xl">Tutup Shift</button>
         </div>
@@ -1224,7 +1224,7 @@
       footer: "Terima Kasih atas Kunjungan Anda!",
       taxEnabled: false,
       serviceChargeEnabled: true,
-      serviceChargeRate: 0.07
+      serviceChargeRate: 0
     };
     let storeConfig = { ...DEFAULT_STORE_CONFIG, ...loadLocal('nyonya_store_config', {}) };
     delete storeConfig.adminPin; // PIN lama sudah tidak dipakai
@@ -1277,7 +1277,7 @@
       const { data, error } = await supabaseClient.from('store_config').select('id,name,address,phone,footer,tax_enabled,service_charge_enabled,service_charge_rate').eq('id','default').maybeSingle();
       if (error) throw error;
       if (data) {
-        storeConfig = { ...storeConfig, ...data, taxEnabled: data.tax_enabled === true, serviceChargeEnabled: data.service_charge_enabled !== false, serviceChargeRate: Number(data.service_charge_rate ?? 0.07) };
+        storeConfig = { ...storeConfig, ...data, taxEnabled: data.tax_enabled === true, serviceChargeEnabled: data.service_charge_enabled !== false, serviceChargeRate: Number(data.service_charge_rate ?? 0) };
         safeLocalSet('nyonya_store_config', storeConfig);
         const header=document.getElementById('header-resto-name'); if(header) header.textContent=storeConfig.name;
         applyFinancialSettingVisibility();
@@ -1901,8 +1901,8 @@
       if (serviceRow) serviceRow.classList.toggle('hidden', !serviceEnabled);
       if (taxToggle) taxToggle.checked = taxEnabled && taxToggle.checked;
       if (serviceSelect) {
-        if (!serviceEnabled) serviceSelect.value = '0';
-        else if (storeConfig.serviceChargeRate != null) serviceSelect.value = String(storeConfig.serviceChargeRate);
+        // Default transaksi baru adalah 0%; kasir/admin tetap dapat memilih tarif lain secara manual.
+        serviceSelect.value = '0';
       }
       if (taxSetting) taxSetting.checked = taxEnabled;
       if (serviceSetting) serviceSetting.checked = serviceEnabled;
@@ -2462,7 +2462,7 @@
       storeConfig.footer = document.getElementById('setting-store-footer').value.trim();
       storeConfig.taxEnabled = document.getElementById('setting-tax-enabled').checked;
       storeConfig.serviceChargeEnabled = document.getElementById('setting-service-charge-enabled').checked;
-      storeConfig.serviceChargeRate = Number(storeConfig.serviceChargeRate ?? 0.07);
+      storeConfig.serviceChargeRate = Number(storeConfig.serviceChargeRate ?? 0);
       if (!supabaseClient) return showToast('Supabase belum tersambung', 'error');
       const { error } = await supabaseClient.from('store_config').upsert({ id:'default', name:storeConfig.name, address:storeConfig.address, phone:storeConfig.phone, footer:storeConfig.footer, tax_enabled:storeConfig.taxEnabled, service_charge_enabled:storeConfig.serviceChargeEnabled, service_charge_rate:storeConfig.serviceChargeRate, updated_at:new Date().toISOString() }, { onConflict:'id' });
       if (error) return showToast('Gagal menyimpan konfigurasi cloud: ' + error.message, 'error');
@@ -2679,9 +2679,17 @@
         if (openingCashDisplay) openingCashDisplay.textContent = '—';
       }
     }
+    function parseCurrencyInput(value) {
+      const digits = String(value ?? '').replace(/[^0-9]/g, '');
+      return digits ? Number(digits) : 0;
+    }
+    function formatCurrencyInput(input) {
+      const digits = String(input.value ?? '').replace(/[^0-9]/g, '');
+      input.value = digits ? Number(digits).toLocaleString('id-ID') : '';
+    }
     async function startCashSession() {
       if (!supabaseClient) return showToast('Supabase belum tersambung', 'error');
-      const opening = Number(document.getElementById('shift-opening-cash').value || 0);
+      const opening = parseCurrencyInput(document.getElementById('shift-opening-cash').value);
       const { data, error } = await window.POSCashSessionsRepository.open(supabaseClient, opening);
       if (error) return showToast('Gagal membuka shift: ' + error.message, 'error');
       CURRENT_CASH_SESSION = data;
@@ -2692,7 +2700,8 @@
       if (!CURRENT_CASH_SESSION) return showToast('Tidak ada shift aktif', 'error');
       const raw = document.getElementById('shift-closing-cash').value.trim();
       if (raw === '') return showToast('Masukkan kas fisik saat tutup shift', 'error');
-      const { data, error } = await window.POSCashSessionsRepository.close(supabaseClient, CURRENT_CASH_SESSION.id, Number(raw));
+      const closing = parseCurrencyInput(raw);
+      const { data, error } = await window.POSCashSessionsRepository.close(supabaseClient, CURRENT_CASH_SESSION.id, closing);
       if (error) return showToast('Gagal menutup shift: ' + error.message, 'error');
       CURRENT_CASH_SESSION = null;
       renderCashSessionUI();
