@@ -367,23 +367,52 @@
       #toast-container { bottom:1rem !important; }
     }
 
+/* Login refresh: premium, responsive, accessible */
+#auth-gate{background:radial-gradient(ellipse at 15% 15%,rgb(249 115 22 / .22),transparent 35%),radial-gradient(ellipse at 90% 85%,rgb(234 88 12 / .18),transparent 32%),#0b1220;padding:max(1rem,env(safe-area-inset-top)) max(1rem,env(safe-area-inset-right)) max(1rem,env(safe-area-inset-bottom)) max(1rem,env(safe-area-inset-left))}
+#auth-form{width:min(100%,430px);padding:clamp(1.25rem,5vw,2.25rem);border:1px solid rgb(255 255 255 / .72);border-radius:1.5rem;background:rgb(255 255 255 / .98);box-shadow:0 28px 90px rgb(0 0 0 / .38);animation:auth-enter .38s ease-out both}
+#auth-form .auth-brand-mark{display:flex;align-items:center;justify-content:center;width:64px;height:64px;margin:0 auto 1rem;border-radius:1.25rem;color:white;font-size:1.65rem;background:linear-gradient(145deg,#fb923c,#ea580c 70%,#9a3412);box-shadow:0 10px 24px rgb(234 88 12 / .28)}
+#auth-form .auth-eyebrow{color:#c2410c;font-size:.68rem;font-weight:900;letter-spacing:.16em;text-transform:uppercase}
+#auth-form .auth-title{margin-top:.4rem;color:#0f172a;font-size:clamp(1.45rem,5vw,1.8rem);font-weight:900;letter-spacing:-.04em;line-height:1.2}
+#auth-form .auth-subtitle{margin:.65rem auto 1.6rem;max-width:19rem;color:#64748b;font-size:.875rem;line-height:1.55}
+#auth-form .auth-field-label{display:block;margin-bottom:.45rem;color:#334155;font-size:.78rem;font-weight:800}
+#auth-form .auth-input-wrap{position:relative;margin-bottom:1rem}
+#auth-form .auth-input{width:100%;min-height:50px;padding:.85rem 1rem;border:1px solid #dbe3ee;border-radius:.9rem;background:#f8fafc;color:#0f172a;font-size:.9rem;outline:none;transition:border-color .18s,box-shadow .18s,background .18s}
+#auth-form .auth-input:focus{border-color:#f97316;background:#fff;box-shadow:0 0 0 4px rgb(249 115 22 / .14)}
+#auth-form .auth-password-input{padding-right:5.2rem}
+#auth-form .auth-toggle-password{position:absolute;top:50%;right:.65rem;transform:translateY(-50%);min-height:34px;padding:.3rem .45rem;border-radius:.5rem;color:#64748b;font-size:.7rem;font-weight:800}
+#auth-form .auth-toggle-password:hover{background:#ffedd5;color:#9a3412}
+#auth-form #auth-submit{display:flex;align-items:center;justify-content:center;gap:.6rem;width:100%;min-height:50px;margin-top:.25rem;border-radius:.9rem;color:#fff;font-size:.9rem;font-weight:900;background:linear-gradient(100deg,#f97316,#ea580c);box-shadow:0 8px 18px rgb(234 88 12 / .22);transition:transform .15s,box-shadow .15s,opacity .15s}
+#auth-form #auth-submit:hover{box-shadow:0 11px 24px rgb(234 88 12 / .3);transform:translateY(-1px)}
+#auth-form #auth-submit:active{transform:translateY(0) scale(.99)}
+#auth-form #auth-submit:disabled{cursor:wait;opacity:.72;transform:none}
+#auth-form .auth-security-note{display:flex;align-items:center;justify-content:center;gap:.45rem;margin-top:1.2rem;color:#94a3b8;font-size:.7rem}
+#auth-form #auth-message{min-height:1.25rem;margin-top:.75rem;text-align:center;font-size:.78rem;font-weight:700;line-height:1.4}
+#auth-form #auth-message:empty{margin-top:.35rem}
+@keyframes auth-enter{from{opacity:0;transform:translateY(10px) scale(.99)}to{opacity:1;transform:translateY(0) scale(1)}}
+@media(prefers-reduced-motion:reduce){#auth-form{animation:none}#auth-form *{transition:none!important}}
+@media(max-width:380px){#auth-form{padding:1.25rem;border-radius:1.2rem}#auth-form .auth-brand-mark{width:56px;height:56px}}
   </style>
 </head>
 
 <body class="auth-locked bg-slate-100 font-sans text-slate-800 antialiased min-h-[100dvh] flex flex-col overflow-x-hidden">
-  <div id="auth-gate" class="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950 p-4">
-    <form id="auth-form" class="w-full max-w-sm rounded-2xl bg-white p-6 shadow-2xl" onsubmit="signInAdmin(event)">
-      <div class="mb-5 text-center">
-        <div class="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-brand-600 text-2xl text-white">🔐</div>
-        <h2 class="text-lg font-black text-slate-900">Login POS Kasir</h2>
-        <p class="mt-1 text-xs text-slate-500">Masuk dengan akun yang telah terdaftar untuk mengakses aplikasi.</p>
+  <div id="auth-gate" class="fixed inset-0 z-[100] flex items-center justify-center overflow-y-auto">
+    <form id="auth-form" onsubmit="signInAdmin(event)" aria-labelledby="auth-title">
+      <div class="text-center">
+        <div class="auth-brand-mark" aria-hidden="true"><i class="fa-solid fa-utensils"></i></div>
+        <p class="auth-eyebrow">Nyonya Terasi Tiban</p>
+        <h2 id="auth-title" class="auth-title">Selamat datang kembali</h2>
+        <p class="auth-subtitle">Masuk untuk melanjutkan operasional kasir dan mengelola transaksi dengan aman.</p>
       </div>
-      <label class="mb-1 block text-xs font-bold text-slate-600">Username</label>
-      <input id="auth-email" type="email" autocomplete="username" required class="mb-3 w-full rounded-xl border border-slate-200 px-3 py-3 text-sm" placeholder="Masukkan email terdaftar">
-      <label class="mb-1 block text-xs font-bold text-slate-600">Password</label>
-      <input id="auth-password" type="password" autocomplete="current-password" required class="mb-4 w-full rounded-xl border border-slate-200 px-3 py-3 text-sm" placeholder="Password">
-      <button id="auth-submit" type="submit" class="w-full rounded-xl bg-brand-600 px-4 py-3 text-sm font-extrabold text-white">Masuk</button>
-      <p id="auth-message" class="mt-3 min-h-5 text-center text-xs font-bold text-red-600"></p>
+      <label for="auth-email" class="auth-field-label">Email akun</label>
+      <div class="auth-input-wrap"><input id="auth-email" type="email" autocomplete="username" required inputmode="email" autocapitalize="none" spellcheck="false" class="auth-input" placeholder="nama@contoh.com" aria-describedby="auth-message"></div>
+      <label for="auth-password" class="auth-field-label">Password</label>
+      <div class="auth-input-wrap">
+        <input id="auth-password" type="password" autocomplete="current-password" required class="auth-input auth-password-input" placeholder="Masukkan password" aria-describedby="auth-message">
+        <button type="button" id="auth-toggle-password" class="auth-toggle-password" aria-label="Tampilkan password" aria-pressed="false">Lihat</button>
+      </div>
+      <button id="auth-submit" type="submit"><i class="fa-solid fa-arrow-right-to-bracket" aria-hidden="true"></i><span>Masuk ke aplikasi</span></button>
+      <p id="auth-message" role="status" aria-live="polite" class="text-red-600"></p>
+      <p class="auth-security-note"><i class="fa-solid fa-shield-halved" aria-hidden="true"></i> Akses aman untuk staf terdaftar</p>
     </form>
   </div>
 
@@ -1465,9 +1494,16 @@
     let checkoutInFlight = false;   // true selama permintaan pembayaran berjalan
     let checkoutAttempt = null;     // { id, signature, sends } -> ID transaksi dipakai ulang saat retry
 
-    window.onload = async function() {
-      await initializeAuth();
-    };
+    window.addEventListener('load', async function() {
+      const passwordToggle = document.getElementById('auth-toggle-password');
+      if (passwordToggle) passwordToggle.addEventListener('click', toggleAuthPassword);
+      try {
+        await initializeAuth();
+      } catch (error) {
+        console.error('Auth initialization error:', error);
+        showAuthMessage('Tidak dapat memulai login. Muat ulang halaman atau hubungi administrator.');
+      }
+    });
 
     async function initializeAuth() {
       if (!supabaseClient) {
@@ -1499,17 +1535,44 @@
 
     async function signInAdmin(event) {
       event.preventDefault();
-      if (!supabaseClient) return showAuthMessage('Supabase belum terkonfigurasi.');
+      if (!supabaseClient) return showAuthMessage('Layanan login belum terhubung. Silakan hubungi administrator.');
       const email = document.getElementById('auth-email').value.trim();
       const password = document.getElementById('auth-password').value;
       const button = document.getElementById('auth-submit');
+      const buttonLabel = button.querySelector('span');
       button.disabled = true;
-      button.textContent = 'Memeriksa...';
-      const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
-      button.disabled = false;
-      button.textContent = 'Masuk';
-      if (error) showAuthMessage('Login gagal: ' + error.message);
-      else showAuthMessage('');
+      if (buttonLabel) buttonLabel.textContent = 'Memeriksa akun...';
+      button.setAttribute('aria-busy', 'true');
+      showAuthMessage('');
+      try {
+        const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
+        if (error) {
+          const message = /invalid login credentials/i.test(error.message)
+            ? 'Email atau password belum benar. Periksa kembali lalu coba lagi.'
+            : /email not confirmed/i.test(error.message)
+              ? 'Email akun belum dikonfirmasi. Hubungi administrator.'
+              : 'Login belum berhasil. Coba lagi beberapa saat.';
+          showAuthMessage(message);
+        } else showAuthMessage('');
+      } catch (error) {
+        console.error('Login error:', error);
+        showAuthMessage('Tidak dapat menghubungi layanan login. Periksa koneksi internet lalu coba lagi.');
+      } finally {
+        button.disabled = false;
+        button.removeAttribute('aria-busy');
+        if (buttonLabel) buttonLabel.textContent = 'Masuk ke aplikasi';
+      }
+    }
+    function toggleAuthPassword() {
+      const input = document.getElementById('auth-password');
+      const button = document.getElementById('auth-toggle-password');
+      if (!input || !button) return;
+      const show = input.type === 'password';
+      input.type = show ? 'text' : 'password';
+      button.textContent = show ? 'Sembunyikan' : 'Lihat';
+      button.setAttribute('aria-label', show ? 'Sembunyikan password' : 'Tampilkan password');
+      button.setAttribute('aria-pressed', String(show));
+      input.focus();
     }
 
     async function loadCurrentUserRole(userId) {
