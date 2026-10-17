@@ -320,23 +320,46 @@
       }
     }
 
-    /* Mobile navigation refinement: primary navigation above search, not duplicated at the bottom. */
-    #mobile-top-nav { display:none; }
-    @media (max-width: 767px) {
+    /* Mobile primary navigation: force the role-aware action bar above the search field. */
+    #mobile-top-nav { display:none !important; }
+    @media (max-width: 1023px) {
       #mobile-top-nav {
-        display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:.35rem;
-        padding:.5rem .65rem; background:#fff; border-bottom:1px solid #e2e8f0;
+        display:grid !important;
+        grid-template-columns:repeat(5,minmax(0,1fr));
+        align-items:stretch;
+        gap:.35rem;
+        flex:0 0 auto;
+        width:100%;
+        box-sizing:border-box;
+        position:relative;
+        z-index:10;
+        padding:.5rem .65rem;
+        background:#fff;
+        border-bottom:1px solid #e2e8f0;
       }
       #mobile-top-nav button {
-        display:flex; flex-direction:column; align-items:center; justify-content:center; gap:.2rem;
-        min-width:0; min-height:48px; padding:.35rem .15rem; border:1px solid #e2e8f0;
-        border-radius:.75rem; background:#f8fafc; color:#475569; font-size:.7rem; font-weight:700;
+        display:flex;
+        flex-direction:column;
+        align-items:center;
+        justify-content:center;
+        gap:.2rem;
+        min-width:0;
+        min-height:48px;
+        padding:.35rem .1rem;
+        border:1px solid #e2e8f0;
+        border-radius:.75rem;
+        background:#f8fafc;
+        color:#475569;
+        font-size:.68rem;
+        font-weight:700;
+        line-height:1.1;
       }
       #mobile-top-nav button i { font-size:1rem; }
       #mobile-top-nav button span { white-space:nowrap; }
       #mobile-nav-stock-menu { gap:.2rem; }
-      #mobile-nav-stock-menu span { font-size:.58rem; letter-spacing:-.025em; }
-      #mobile-top-nav .mobile-admin-nav[hidden] { display:none !important; }
+      #mobile-nav-stock-menu > span { font-size:.58rem; letter-spacing:-.025em; }
+      #mobile-top-nav .mobile-admin-nav[hidden],
+      #mobile-top-nav .mobile-admin-nav[style*="display: none"] { display:none !important; }
       #mobile-top-nav button:active { background:#fff7ed; border-color:#fdba74; color:#c2410c; }
       main { padding-bottom:0 !important; }
       #cart-panel { bottom:0 !important; height:76dvh !important; max-height:76dvh !important; }
@@ -1730,10 +1753,15 @@
 
     // Keep the mobile action bar aligned with the authenticated role.
     function syncMobileTopNavRole() {
-      const isAdmin = currentUserRole === 'admin';
+      // Role values may arrive as "Admin", "admin", or "owner" depending on auth/profile source.
+      const normalizedRole = String(currentUserRole || '').trim().toLowerCase();
+      const isAdmin = normalizedRole === 'admin' || normalizedRole === 'owner' || normalizedRole.includes('admin');
       document.querySelectorAll('#mobile-top-nav .mobile-admin-nav').forEach((button) => {
         button.hidden = !isAdmin;
+        button.style.display = isAdmin ? 'flex' : 'none';
       });
+      const nav = document.getElementById('mobile-top-nav');
+      if (nav) nav.dataset.roleReady = 'true';
     }
 
     // Mirror the active-bill count in the mobile navigation.
