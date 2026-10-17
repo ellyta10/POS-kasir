@@ -1166,7 +1166,7 @@
         <div class="grid grid-cols-2 gap-3">
           <div>
             <label class="text-xs font-bold text-slate-600 block mb-1">Harga Toko</label>
-            <input id="product-price-input" type="number" inputmode="numeric" pattern="[0-9]*" min="0" step="500" placeholder="28000" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm">
+            <input id="product-price-input" type="text" inputmode="numeric" autocomplete="off" oninput="formatCurrencyInput(this)" placeholder="28.000" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm">
           </div>
           <div>
             <label class="text-xs font-bold text-slate-600 block mb-1">Emoji</label>
@@ -1226,11 +1226,11 @@
         <div class="grid grid-cols-2 gap-3">
           <div>
             <label class="text-xs font-bold text-slate-600 block mb-1">Harga Gojek</label>
-            <input id="product-gojek-price-input" type="number" inputmode="numeric" pattern="[0-9]*" min="0" step="500" placeholder="32000" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm">
+            <input id="product-gojek-price-input" type="text" inputmode="numeric" autocomplete="off" oninput="formatCurrencyInput(this)" placeholder="32.000" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm">
           </div>
           <div>
             <label class="text-xs font-bold text-slate-600 block mb-1">Harga Grab</label>
-            <input id="product-grab-price-input" type="number" inputmode="numeric" pattern="[0-9]*" min="0" step="500" placeholder="32000" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm">
+            <input id="product-grab-price-input" type="text" inputmode="numeric" autocomplete="off" oninput="formatCurrencyInput(this)" placeholder="32.000" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm">
           </div>
         </div>
         <label class="flex items-center gap-2 text-sm font-semibold text-slate-700">
@@ -1254,7 +1254,7 @@
           </div>
           <div id="product-manual-hpp-wrap" class="hidden">
             <label for="product-manual-hpp-input" class="block text-xs font-bold text-slate-600 mb-1">HPP manual per porsi (Rp)</label>
-            <input id="product-manual-hpp-input" type="number" min="0" step="100" inputmode="numeric" placeholder="Contoh: 18500" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm">
+            <input id="product-manual-hpp-input" type="text" inputmode="numeric" autocomplete="off" oninput="formatCurrencyInput(this)" placeholder="Contoh: 18.500" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm">
             <p class="mt-1 text-[10px] text-slate-500">Masukkan total HPP yang kamu tentukan sendiri.</p>
           </div>
           <div class="flex items-center justify-between border-t border-indigo-200 pt-2 text-xs">
@@ -2548,13 +2548,13 @@
       document.getElementById('product-name-input').value = product.name;
       renderCategoryDropdowns();
       document.getElementById('product-category-input').value = product.category;
-      document.getElementById('product-price-input').value = product.price;
-      document.getElementById('product-gojek-price-input').value = product.gojek_price || product.price;
-      document.getElementById('product-grab-price-input').value = product.grab_price || product.price;
+      document.getElementById('product-price-input').value = Number(product.price || 0).toLocaleString('id-ID');
+      document.getElementById('product-gojek-price-input').value = Number(product.gojek_price || product.price || 0).toLocaleString('id-ID');
+      document.getElementById('product-grab-price-input').value = Number(product.grab_price || product.price || 0).toLocaleString('id-ID');
       document.getElementById('product-emoji-input').value = product.emoji || '🍽️';
       document.getElementById('product-available-input').checked = product.available !== false;
       document.querySelector(`input[name="product-hpp-mode"][value="${product.hpp_mode === 'manual' ? 'manual' : 'auto'}"]`).checked = true;
-      document.getElementById('product-manual-hpp-input').value = product.manual_hpp ?? '';
+      document.getElementById('product-manual-hpp-input').value = product.manual_hpp == null ? '' : Number(product.manual_hpp).toLocaleString('id-ID');
       toggleProductHppMode();
       renderProductRecipeEditor(product.recipe || []);
       const modal = document.getElementById('add-product-modal');
@@ -2645,7 +2645,7 @@
       if (cost) cost.textContent = 'Rp ' + Math.round(total).toLocaleString('id-ID');
       const manualInput = document.getElementById('product-manual-hpp-input');
       const mode = document.querySelector('input[name="product-hpp-mode"]:checked')?.value || 'auto';
-      const effective = mode === 'manual' ? Number(manualInput?.value || 0) : total;
+      const effective = mode === 'manual' ? parseCashAmount(manualInput?.value || 0) : total;
       const effectiveEl = document.getElementById('product-effective-hpp');
       if (effectiveEl) effectiveEl.textContent = 'Rp ' + Math.round(effective).toLocaleString('id-ID');
       const help = document.getElementById('product-recipe-help');
@@ -2665,14 +2665,14 @@
       const id = document.getElementById('edit-product-id').value.trim();
       const name = document.getElementById('product-name-input').value.trim();
       const category = document.getElementById('product-category-input').value.trim();
-      const price = Number(document.getElementById('product-price-input').value);
-      const gojek_price = Number(document.getElementById('product-gojek-price-input').value) || price;
-      const grab_price = Number(document.getElementById('product-grab-price-input').value) || price;
+      const price = parseCashAmount(document.getElementById('product-price-input').value);
+      const gojek_price = parseCashAmount(document.getElementById('product-gojek-price-input').value) || price;
+      const grab_price = parseCashAmount(document.getElementById('product-grab-price-input').value) || price;
       const emoji = document.getElementById('product-emoji-input').value.trim() || '🍽️';
       const available = document.getElementById('product-available-input').checked;
       const hpp_mode = document.querySelector('input[name="product-hpp-mode"]:checked')?.value || 'auto';
       const manualHppRaw = document.getElementById('product-manual-hpp-input').value;
-      const manual_hpp = manualHppRaw === '' ? null : Number(manualHppRaw);
+      const manual_hpp = manualHppRaw.trim() === '' ? null : parseCashAmount(manualHppRaw);
       let recipe = [];
 
       if (!name || !category || !Number.isFinite(price) || price <= 0) {
