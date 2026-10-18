@@ -2203,6 +2203,10 @@
       if(CART.length === 0) { showToast('Keranjang kosong!', 'error'); return; }
       if (!supabaseClient) { showToast('Supabase belum tersambung', 'error'); return; }
       const previousBill = currentOrderType === 'Dine In' ? ACTIVE_BILLS[currentTable] : null;
+      if (previousBill && loadedActiveBillTable !== currentTable) {
+        showToast('Meja ini sudah memiliki bill aktif. Panggil bill tersebut terlebih dahulu sebelum mengubah atau mengirim pesanan.', 'error');
+        return;
+      }
       const isRevision = Boolean(previousBill && loadedActiveBillTable === currentTable);
       if (isRevision && kitchenItemsSignature(previousBill.items) === kitchenItemsSignature(CART)) {
         showToast('Tidak ada perubahan pesanan. Tiket tidak dikirim ulang agar dapur tidak membuat pesanan ganda.', 'error');
@@ -2293,8 +2297,15 @@
       }
 
       delete pendingBillCancellationRequests[tbl];
-      delete ACTIVE_BILLS[tbl];
-      safeLocalSet('nyonya_active_bills', ACTIVE_BILLS);
+      // Refresh the server list so a newer bill created on the same table is not
+      // accidentally removed from the local UI after an idempotent retry.
+      try {
+        await loadActiveBillsFromSupabase();
+      } catch (refreshError) {
+        console.warn('Pembatalan tersimpan, tetapi daftar bill gagal disegarkan:', refreshError);
+        if (!result.already_cancelled) delete ACTIVE_BILLS[tbl];
+        safeLocalSet('nyonya_active_bills', ACTIVE_BILLS);
+      }
       updateActiveBillsCount();
       renderTableOptions();
       closeRecallBillsModal();
