@@ -3,6 +3,21 @@
 -- Existing closed sessions and transaction history are preserved.
 
 drop index if exists public.one_open_cash_session_per_user_idx;
+
+-- Testing may already contain several open per-user sessions. Keep the oldest as
+-- the active session and mark the other open test sessions closed without deleting
+-- their rows or cash movements.
+with ranked_open_sessions as (
+  select id, row_number() over (order by opened_at asc, created_at asc, id asc) as rn
+  from public.cash_sessions
+  where status = 'open'
+)
+update public.cash_sessions cs
+set status = 'closed',
+    closed_at = coalesce(cs.closed_at, now())
+from ranked_open_sessions r
+where cs.id = r.id and r.rn > 1;
+
 create unique index if not exists one_open_cash_session_global_idx
   on public.cash_sessions ((status)) where status = 'open';
 
@@ -70,6 +85,9 @@ declare
 begin
   if v_uid is null then
     raise exception 'Login diperlukan';
+  end if;
+  if not exists (select 1 from public.profiles where user_id = v_uid and role in ('admin','cashier')) then
+    raise exception 'Role akun tidak valid';
   end if;
 
   select *
