@@ -1123,7 +1123,7 @@
         <div id="rep-view-products" class="space-y-4 hidden"><div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-4"><div class="flex flex-wrap justify-between items-center gap-2 mb-3"><div><h4 class="font-bold text-sm">Penjualan Produk</h4><p class="text-[10px] text-slate-400">Terlaris berdasarkan data order_items dan snapshot transaksi</p></div><div class="flex gap-2"><select id="report-product-sort" onchange="loadReportProducts()" class="px-3 py-1.5 border rounded-xl text-xs"><option value="qty">Qty terjual</option><option value="revenue">Omzet</option></select><button onclick="exportReportProductsCSV()" class="px-3 py-1.5 bg-emerald-600 text-white text-xs font-bold rounded-xl">Export CSV</button></div></div><div class="overflow-x-auto"><table class="w-full text-left border-collapse text-xs"><thead><tr class="bg-slate-100 text-slate-600 uppercase font-bold text-[10px]"><th class="p-2">#</th><th class="p-2">Menu</th><th class="p-2 text-right">Qty</th><th class="p-2 text-right">Omzet</th><th class="p-2 text-right">Rata-rata</th></tr></thead><tbody id="rep-products-body" class="divide-y divide-slate-100"></tbody></table></div></div></div>
         <div id="rep-view-shifts" class="space-y-4 hidden"><div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-4"><div class="flex justify-between items-center mb-3"><h4 class="font-bold text-sm">Kas & Shift</h4><span class="text-[10px] text-slate-400">Ringkasan shift kasir</span></div><div id="rep-shifts-body" class="overflow-x-auto"></div></div></div>
         <div id="rep-view-inventory" class="space-y-4 hidden"><div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-4"><div class="flex justify-between items-center mb-3"><h4 class="font-bold text-sm">Stok & Bahan Baku</h4><span id="rep-inventory-val" class="font-mono font-black text-indigo-600">Rp 0</span></div><div id="rep-inventory-body" class="overflow-x-auto"></div></div></div>
-        <div id="rep-view-voids" class="space-y-4 hidden"><div class="bg-amber-50 border border-amber-200 p-3 rounded-xl text-xs text-amber-800">Tab ini hanya menampilkan transaksi void dan audit untuk admin/owner.</div><div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-4"><div class="flex justify-between items-center mb-3"><h4 class="font-bold text-sm">Void & Audit</h4><button onclick="exportReportVoidsCSV()" class="px-3 py-1.5 bg-emerald-600 text-white text-xs font-bold rounded-xl">Export CSV</button></div><div class="overflow-x-auto"><table class="w-full text-left border-collapse text-xs"><thead><tr class="bg-slate-100 text-slate-600 uppercase font-bold text-[10px]"><th class="p-2">Transaksi</th><th class="p-2">Tanggal</th><th class="p-2">Kasir</th><th class="p-2">Nilai</th><th class="p-2">Alasan</th><th class="p-2">Waktu void</th></tr></thead><tbody id="rep-void-history-body" class="divide-y divide-slate-100"></tbody></table></div></div></div>
+        <div id="rep-view-voids" class="space-y-4 hidden"><div class="bg-amber-50 border border-amber-200 p-3 rounded-xl text-xs text-amber-800">Tab ini hanya menampilkan transaksi void dan audit untuk admin/owner. Pembatalan pesanan aktif dicatat terpisah dan tidak dihitung sebagai omzet.</div><div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-4"><div class="flex justify-between items-center mb-3"><h4 class="font-bold text-sm">Void & Audit Transaksi</h4><button onclick="exportReportVoidsCSV()" class="px-3 py-1.5 bg-emerald-600 text-white text-xs font-bold rounded-xl">Export Void CSV</button></div><div class="overflow-x-auto"><table class="w-full text-left border-collapse text-xs"><thead><tr class="bg-slate-100 text-slate-600 uppercase font-bold text-[10px]"><th class="p-2">Transaksi</th><th class="p-2">Tanggal</th><th class="p-2">Kasir</th><th class="p-2">Nilai</th><th class="p-2">Alasan</th><th class="p-2">Waktu void</th></tr></thead><tbody id="rep-void-history-body" class="divide-y divide-slate-100"></tbody></table></div></div><div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-4"><div class="flex flex-wrap justify-between items-center gap-2 mb-2"><div><h4 class="font-bold text-sm">Riwayat Pembatalan Pesanan Aktif</h4><p class="text-[10px] text-slate-500">Dibaca dari audit log. Tidak mengubah data dan tidak menambah omzet.</p></div><span id="rep-cancellation-count" class="text-[10px] text-slate-500">Memuat data…</span></div><p id="rep-cancellation-state" class="text-xs text-slate-500 mb-2" role="status" aria-live="polite">Pilih periode lalu terapkan filter untuk memuat data.</p><div class="overflow-x-auto"><table class="w-full text-left border-collapse text-xs"><thead><tr class="bg-slate-100 text-slate-600 uppercase font-bold text-[10px]"><th class="p-2 whitespace-nowrap">Waktu</th><th class="p-2 whitespace-nowrap">Meja</th><th class="p-2 whitespace-nowrap">Jenis</th><th class="p-2">Menu & Qty</th><th class="p-2">Alasan</th><th class="p-2">Petugas</th></tr></thead><tbody id="rep-cancellations-body" class="divide-y divide-slate-100"></tbody></table></div></div></div>
         <div id="rep-view-transactions" class="space-y-4 hidden"><div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-4"><div class="flex flex-wrap justify-between items-center gap-2 mb-3"><div><h4 class="font-bold text-sm">Riwayat Transaksi</h4><p class="text-[10px] text-slate-400">Sesuai filter periode dan channel aktif</p></div><button onclick="exportHistoryCSV()" class="px-3 py-1.5 bg-emerald-600 text-white text-xs font-bold rounded-xl">Export CSV</button></div><div class="overflow-x-auto"><table class="w-full text-left border-collapse text-xs"><thead><tr class="bg-slate-100 text-slate-600 uppercase font-bold text-[10px]"><th class="p-2">Transaksi</th><th class="p-2">Tanggal</th><th class="p-2">Kasir</th><th class="p-2">Channel</th><th class="p-2">Pembayaran</th><th class="p-2 text-right">Total</th><th class="p-2">Status</th></tr></thead><tbody id="rep-transactions-body" class="divide-y divide-slate-100"></tbody></table></div></div></div>
       </div>
     </div>
@@ -1472,6 +1472,7 @@
     let REPORT_DASHBOARD = {};
     let REPORT_RANGE = null;
     let REPORT_ROWS = [];
+    let REPORT_CANCELLATIONS = [];
     let REPORT_ORDER_ITEMS = [];
     let REPORT_MATERIALS = [];
     let REPORT_MOVEMENTS = [];
@@ -3215,6 +3216,46 @@
       const cashiers = [...new Set(REPORT_ROWS.map(row => row.cashier).filter(Boolean))]; const select = document.getElementById('report-cashier-filter');
       if (select && select.options.length <= 1) cashiers.forEach(name => { const opt = document.createElement('option'); opt.value = name; opt.textContent = name; select.appendChild(opt); });
       renderReportProducts(); renderReportVoids(); renderReportTransactions();
+      await loadReportCancellations(range);
+    }
+    async function loadReportCancellations(range) {
+      const body = document.getElementById('rep-cancellations-body');
+      const state = document.getElementById('rep-cancellation-state');
+      const count = document.getElementById('rep-cancellation-count');
+      if (!body || !state || !count) return;
+      state.textContent = 'Memuat riwayat pembatalan…';
+      count.textContent = 'Memuat…';
+      try {
+        const { data, error } = await supabaseClient.from('audit_logs')
+          .select('user_email,action,target_type,target_id,details,created_at')
+          .eq('action', 'cancel_active_bill')
+          .gte('created_at', `${range.from}T00:00:00`)
+          .lte('created_at', `${range.to}T23:59:59`)
+          .order('created_at', { ascending: false }).limit(1000);
+        if (error) throw error;
+        REPORT_CANCELLATIONS = Array.isArray(data) ? data : [];
+        renderReportCancellations();
+      } catch (error) {
+        console.error('Gagal memuat riwayat pembatalan:', error);
+        REPORT_CANCELLATIONS = [];
+        body.innerHTML = '<tr><td colspan="6" class="p-4 text-center text-red-600">Riwayat pembatalan gagal dimuat. Periksa koneksi dan akses admin, lalu coba Terapkan Filter kembali.</td></tr>';
+        count.textContent = 'Data tidak tersedia';
+        state.textContent = 'Bagian lain pada laporan tetap dapat digunakan.';
+      }
+    }
+    function renderReportCancellations() {
+      const body = document.getElementById('rep-cancellations-body');
+      const state = document.getElementById('rep-cancellation-state');
+      const count = document.getElementById('rep-cancellation-count');
+      if (!body || !state || !count) return;
+      count.textContent = `${REPORT_CANCELLATIONS.length.toLocaleString('id-ID')} pembatalan`;
+      state.textContent = REPORT_CANCELLATIONS.length ? 'Menampilkan pembatalan pada periode terpilih.' : 'Tidak ada pembatalan pesanan aktif pada periode ini.';
+      body.innerHTML = REPORT_CANCELLATIONS.length ? REPORT_CANCELLATIONS.map(row => {
+        const details = row.details && typeof row.details === 'object' ? row.details : {};
+        const items = Array.isArray(details.items) ? details.items.map(item => `${escapeHtml(item.name || item.id || 'Menu')} × ${Number(item.qty ?? item.quantity ?? 0).toLocaleString('id-ID')}`).join(', ') : 'Rincian menu tidak tersedia';
+        const date = row.created_at && !Number.isNaN(new Date(row.created_at).getTime()) ? new Date(row.created_at).toLocaleString('id-ID') : '-';
+        return `<tr class="border-t align-top"><td class="p-2 whitespace-nowrap">${escapeHtml(date)}</td><td class="p-2 whitespace-nowrap font-bold">${escapeHtml(row.target_id || '-')}</td><td class="p-2">${escapeHtml(details.order_type || '-')}</td><td class="p-2 min-w-40">${items}</td><td class="p-2 min-w-32">${escapeHtml(details.reason || 'Alasan tidak tersedia')}</td><td class="p-2">${escapeHtml(row.user_email || 'Tidak tersedia')}</td></tr>`;
+      }).join('') : '<tr><td colspan="6" class="p-4 text-center text-slate-400">Belum ada pembatalan pesanan aktif pada periode ini.</td></tr>';
     }
     async function loadReportOperationalData(range) {
       const [{ data: materials, error: materialError }, { data: movements, error: movementError }, { data: shifts, error: shiftError }] = await window.POSReportsRepository.operational(supabaseClient, range, window.POSCashSessionsRepository);
