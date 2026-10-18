@@ -4,10 +4,11 @@
   const REPORT_SELECT = 'id,user_id,opened_at,closed_at,opening_cash,closing_cash,expected_cash,difference,status';
 
   function current(client, userId) {
+    // The register is shared globally; userId remains in the signature for backwards compatibility.
+    void userId;
     return client
       .from('cash_sessions')
       .select(CURRENT_SELECT)
-      .eq('user_id', userId)
       .eq('status', 'open')
       .order('opened_at', { ascending: false })
       .limit(1)
