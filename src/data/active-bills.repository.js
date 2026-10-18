@@ -39,12 +39,21 @@
     });
   }
 
+  function cancel(client, tableName, reason, requestId) {
+    return client.rpc('cancel_active_bill', {
+      p_table_name: tableName,
+      p_reason: reason,
+      p_request_id: requestId
+    });
+  }
+
   global.POSActiveBillsRepository = Object.freeze({
     BILL_SELECT,
     normalizeBill,
     list,
     save,
     remove,
-    move
+    move,
+    cancel
   });
 })(window);
