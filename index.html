@@ -1494,6 +1494,7 @@
     // Preserve an unrelated draft when a cancellation ticket is closed.
     let preserveCartAfterKitchenTicket = false;
     let kitchenTicketMode = "order";
+    let pendingBillCancellationRequests = {};
 
     // ===== Status checkout (Batch 1) =====
     let checkoutInFlight = false;   // true selama permintaan pembayaran berjalan
@@ -2263,9 +2264,13 @@
       if (!reason.trim()) { showToast('Alasan pembatalan wajib diisi.', 'error'); return; }
       const confirmed = window.confirm(`Batalkan pesanan ${tbl} berisi ${(bill.items || []).length} jenis item? Pesanan akan dihapus dari bill aktif dan tiket pembatalan harus disampaikan ke dapur.`);
       if (!confirmed) return;
-      const requestId = (window.crypto && typeof window.crypto.randomUUID === 'function')
-        ? window.crypto.randomUUID()
-        : 'cancel-' + Date.now() + '-' + Math.random().toString(36).slice(2);
+      const fallbackUuidTail = (Date.now().toString(16) + Math.floor(Math.random() * 0xffffffffffff).toString(16)).slice(-12).padStart(12, '0');
+      const requestId = pendingBillCancellationRequests[tbl] || (
+        window.crypto && typeof window.crypto.randomUUID === 'function'
+          ? window.crypto.randomUUID()
+          : '00000000-0000-4000-8000-' + fallbackUuidTail
+      );
+      pendingBillCancellationRequests[tbl] = requestId;
       let result;
       try {
         const response = await window.POSActiveBillsRepository.cancel(supabaseClient, tbl, reason.trim(), requestId);
@@ -2274,11 +2279,20 @@
       } catch (error) {
         console.error('Pembatalan bill gagal/hasil belum pasti:', error);
         try { await loadActiveBillsFromSupabase(); } catch (refreshError) { console.warn('Gagal menyegarkan bill setelah pembatalan:', refreshError); }
-        showToast('Hasil pembatalan belum dapat dipastikan. Periksa daftar bill dan audit sebelum mencoba lagi.', 'error');
+        // Keep the last known bill visible so a retry can reuse the same request ID.
+        // The RPC returns the original cancellation snapshot if the first request committed.
+        if (!ACTIVE_BILLS[tbl]) {
+          ACTIVE_BILLS[tbl] = bill;
+          safeLocalSet('nyonya_active_bills', ACTIVE_BILLS);
+          updateActiveBillsCount();
+          renderTableOptions();
+        }
+        showToast('Hasil pembatalan belum dapat dipastikan. Coba ulangi dengan tombol Batalkan yang sama untuk memeriksa hasil aman.', 'error');
         openRecallBillsModal();
         return;
       }
 
+      delete pendingBillCancellationRequests[tbl];
       delete ACTIVE_BILLS[tbl];
       safeLocalSet('nyonya_active_bills', ACTIVE_BILLS);
       updateActiveBillsCount();
