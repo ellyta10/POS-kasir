@@ -5,7 +5,7 @@ create or replace function public.cancel_active_bill(
   p_reason text,
   p_request_id uuid
 )
-returns jsonb language plpgsql security definer set search_path = public
+returns jsonb language plpgsql security definer set search_path = ''
 as $$
 declare
   v_uid uuid := auth.uid();
@@ -22,6 +22,11 @@ begin
   if v_reason = '' then raise exception 'Alasan pembatalan wajib diisi'; end if;
   if length(v_reason) > 500 then raise exception 'Alasan pembatalan maksimal 500 karakter'; end if;
   if p_request_id is null then raise exception 'ID permintaan pembatalan wajib diisi'; end if;
+
+  -- Serialize retries using the same request ID. Without this lock, two simultaneous
+  -- requests could both miss the audit row and the second would fail after the first
+  -- request deletes the bill. The lock is transaction-scoped and has no persistent state.
+  perform pg_advisory_xact_lock(hashtextextended(p_request_id::text, 0));
 
   -- Retry with the same request ID returns the original bill snapshot, never a newer bill.
   select * into v_previous
