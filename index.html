@@ -2309,7 +2309,9 @@
       updateActiveBillsCount();
       renderTableOptions();
       closeRecallBillsModal();
-      if (loadedActiveBillTable === tbl) {
+      const cancelledItems = Array.isArray(result.items) ? result.items : (bill.items || []);
+      const cartIsCancelledBill = kitchenItemsSignature(CART) === kitchenItemsSignature(cancelledItems);
+      if (loadedActiveBillTable === tbl && cartIsCancelledBill) {
         CART = [];
         loadedActiveBillTable = null;
         renderCart();
@@ -2319,7 +2321,6 @@
       }
       kitchenTicketMode = 'cancellation';
       const ktContent = document.getElementById('kitchen-ticket-content');
-      const cancelledItems = Array.isArray(result.items) ? result.items : (bill.items || []);
       ktContent.innerHTML = `
         <div class="text-center pb-2 border-b-2 border-red-600"><h4 class="font-extrabold text-sm">${escapeHtml(storeConfig.name)}</h4><p class="text-sm font-black text-red-700">PEMBATALAN PESANAN — JANGAN DIPROSES</p></div>
         <div class="py-1"><strong>Meja: ${escapeHtml(tbl)}</strong><br><span>Waktu batal: ${escapeHtml(new Date().toLocaleTimeString())} | Kasir: ${escapeHtml(currentUser.name)}</span></div>
