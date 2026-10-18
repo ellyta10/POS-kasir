@@ -681,7 +681,7 @@
           <i class="fa-solid fa-print"></i>
           <span>Cetak Tiket Dapur</span>
         </button>
-        <button onclick="closeKitchenModal()" class="px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white text-xs font-bold rounded-xl transition shadow-sm">
+        <button id="kitchen-ticket-close-action" onclick="closeKitchenModal()" class="px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white text-xs font-bold rounded-xl transition shadow-sm">
           Tutup & Simpan Bill
         </button>
       </div>
@@ -1491,6 +1491,9 @@
     let currentCategoryFilter = 'Semua';
     // Meja asal cart yang sedang dipanggil dari active bill; null berarti draft baru.
     let loadedActiveBillTable = null;
+    // Preserve an unrelated draft when a cancellation ticket is closed.
+    let preserveCartAfterKitchenTicket = false;
+    let kitchenTicketMode = "order";
 
     // ===== Status checkout (Batch 1) =====
     let checkoutInFlight = false;   // true selama permintaan pembayaran berjalan
@@ -2157,10 +2160,54 @@
     function setExactCash() { const input = document.getElementById('cash-given-input'); if (!input) return; setCashAmount(input, calculateGrandTotal()); calculateCashChange(); focusCashInput(); }
     function addCashGiven(amt) { const input = document.getElementById('cash-given-input'); if (!input) return; setCashAmount(input, parseCashAmount(input.value) + amt); calculateCashChange(); focusCashInput(); }
 
+    function kitchenItemsSignature(items) {
+      return JSON.stringify((items || []).map(item => ({
+        id: String(item.id || ''),
+        qty: Number(item.qty) || 0,
+        notes: String(item.notes || '').trim()
+      })).sort((a, b) => a.id.localeCompare(b.id) || a.notes.localeCompare(b.notes)));
+    }
+
+    function buildKitchenItemChanges(previousItems, nextItems) {
+      const aggregate = (items) => {
+        const map = new Map();
+        (items || []).forEach(item => {
+          const id = String(item.id || '');
+          const notes = String(item.notes || '').trim();
+          const key = id + '\u0000' + notes;
+          const entry = map.get(key) || { id, notes, name: String(item.name || id), qty: 0 };
+          entry.qty += Number(item.qty) || 0;
+          map.set(key, entry);
+        });
+        return map;
+      };
+      const before = aggregate(previousItems);
+      const after = aggregate(nextItems);
+      const keys = new Set([...before.keys(), ...after.keys()]);
+      const removed = [];
+      const added = [];
+      keys.forEach(key => {
+        const oldItem = before.get(key);
+        const newItem = after.get(key);
+        const oldQty = oldItem ? oldItem.qty : 0;
+        const newQty = newItem ? newItem.qty : 0;
+        const item = newItem || oldItem;
+        if (oldQty > newQty) removed.push({ qty: oldQty - newQty, name: item.name, notes: item.notes });
+        if (newQty > oldQty) added.push({ qty: newQty - oldQty, name: item.name, notes: item.notes });
+      });
+      return { removed, added };
+    }
+
     async function sendToKitchen() {
       if(CART.length === 0) { showToast('Keranjang kosong!', 'error'); return; }
-      const bill = { table: currentTable, orderType: currentOrderType, items: JSON.parse(JSON.stringify(CART)), time: new Date().toLocaleTimeString() };
       if (!supabaseClient) { showToast('Supabase belum tersambung', 'error'); return; }
+      const previousBill = currentOrderType === 'Dine In' ? ACTIVE_BILLS[currentTable] : null;
+      const isRevision = Boolean(previousBill && loadedActiveBillTable === currentTable);
+      if (isRevision && kitchenItemsSignature(previousBill.items) === kitchenItemsSignature(CART)) {
+        showToast('Tidak ada perubahan pesanan. Tiket tidak dikirim ulang agar dapur tidak membuat pesanan ganda.', 'error');
+        return;
+      }
+      const bill = { table: currentTable, orderType: currentOrderType, items: JSON.parse(JSON.stringify(CART)), time: new Date().toLocaleTimeString() };
       if (currentOrderType === 'Dine In') {
         const { error } = await window.POSActiveBillsRepository.save(supabaseClient, { table_name: currentTable, order_type: currentOrderType, items: bill.items, order_time: bill.time, updated_at: new Date().toISOString() });
         if (error) { showToast('Bill dapur gagal disimpan: ' + error.message, 'error'); return; }
@@ -2170,23 +2217,96 @@
         renderTableOptions();
       }
 
-      // Render Kitchen Ticket Content (semua data di-escape)
+      const changes = isRevision ? buildKitchenItemChanges(previousBill.items, bill.items) : null;
+      kitchenTicketMode = isRevision ? 'revision' : 'order';
+      preserveCartAfterKitchenTicket = false;
       const ktContent = document.getElementById('kitchen-ticket-content');
+      const orderHeading = isRevision ? 'REVISI PESANAN — IKUTI PERUBAHAN DI BAWAH' : 'TIKET DAPUR (KOKI)';
+      const changeRows = isRevision
+        ? `
+          <div class="border-2 border-red-600 p-2 font-extrabold text-center text-red-700">PERHATIAN: JANGAN MEMBUAT ULANG ITEM LAMA. PROSES HANYA PERUBAHAN DI BAWAH.</div>
+          ${changes.removed.length ? `<div class="py-1"><strong class="text-red-700">BATAL / KURANGI</strong>${changes.removed.map(i => `<div class="text-red-700">− ${i.qty}x ${escapeHtml(i.name)}${i.notes ? `<br><span class="pl-3">Catatan: ${escapeHtml(i.notes)}</span>` : ''}</div>`).join('')}</div>` : ''}
+          ${changes.added.length ? `<div class="py-1"><strong class="text-emerald-700">TAMBAH / GANTI</strong>${changes.added.map(i => `<div class="text-emerald-700">+ ${i.qty}x ${escapeHtml(i.name)}${i.notes ? `<br><span class="pl-3">Catatan: ${escapeHtml(i.notes)}</span>` : ''}</div>`).join('')}</div>` : ''}
+          <div class="text-[10px] text-slate-600 border-t border-dashed pt-1">Daftar pesanan terbaru tersimpan di POS. Jika item sudah terlanjur dibuat, konfirmasi dengan kasir sebelum membuang atau mengganti makanan.</div>
+        `
+        : `<div class="py-2 border-y border-dashed space-y-1">${CART.map(i=>`<div><strong>${Number(i.qty) || 0}x ${escapeHtml(i.name)}</strong>${i.notes ? `<br><span class="text-red-600 pl-3">Catatan: ${escapeHtml(i.notes)}</span>` : ''}</div>`).join('')}</div>`;
       ktContent.innerHTML = `
-        <div class="text-center pb-2 border-b border-dashed"><h4 class="font-extrabold text-sm">${escapeHtml(storeConfig.name)}</h4><p class="text-[10px]">TIKET DAPUR (KOKI)</p></div>
+        <div class="text-center pb-2 border-b border-dashed"><h4 class="font-extrabold text-sm">${escapeHtml(storeConfig.name)}</h4><p class="text-[10px]">${orderHeading}</p></div>
         <div class="py-1"><span>${currentOrderType === 'Dine In' ? `Meja: <strong>${escapeHtml(currentTable)}</strong>` : `Channel: <strong>${escapeHtml(currentOrderType)}</strong>`}</span><br><span>Waktu: ${escapeHtml(new Date().toLocaleTimeString())} | Kasir: ${escapeHtml(currentUser.name)}</span></div>
-        <div class="py-2 border-y border-dashed space-y-1">
-          ${CART.map(i=>`<div><strong>${Number(i.qty) || 0}x ${escapeHtml(i.name)}</strong>${i.notes ? `<br><span class="text-red-600 pl-3">Catatan: ${escapeHtml(i.notes)}</span>`:''}</div>`).join('')}
-        </div>
+        ${changeRows}
       `;
-
+      const closeAction = document.getElementById('kitchen-ticket-close-action');
+      if (closeAction) closeAction.textContent = isRevision ? 'Tutup Revisi Pesanan' : 'Tutup & Simpan Bill';
       document.getElementById('kitchen-ticket-modal').classList.remove('hidden');
       if (printerConfig.autoKitchen) setTimeout(printKitchenTicket, 350);
     }
 
     function closeKitchenModal() {
       document.getElementById('kitchen-ticket-modal').classList.add('hidden');
-      CART = []; loadedActiveBillTable = null; renderCart();
+      if (!preserveCartAfterKitchenTicket) {
+        CART = [];
+        loadedActiveBillTable = null;
+        renderCart();
+      }
+      preserveCartAfterKitchenTicket = false;
+      kitchenTicketMode = 'order';
+      const closeAction = document.getElementById('kitchen-ticket-close-action');
+      if (closeAction) closeAction.textContent = 'Tutup & Simpan Bill';
+    }
+
+    async function cancelActiveBill(tbl) {
+      if (!supabaseClient) { showToast('Supabase belum tersambung', 'error'); return; }
+      const bill = ACTIVE_BILLS[tbl];
+      if (!bill) { showToast('Bill aktif tidak ditemukan. Muat ulang daftar bill.', 'error'); return; }
+      const reason = window.prompt(`Alasan pembatalan pesanan ${tbl} (wajib diisi):`, '');
+      if (reason === null) return;
+      if (!reason.trim()) { showToast('Alasan pembatalan wajib diisi.', 'error'); return; }
+      const confirmed = window.confirm(`Batalkan pesanan ${tbl} berisi ${(bill.items || []).length} jenis item? Pesanan akan dihapus dari bill aktif dan tiket pembatalan harus disampaikan ke dapur.`);
+      if (!confirmed) return;
+      const requestId = (window.crypto && typeof window.crypto.randomUUID === 'function')
+        ? window.crypto.randomUUID()
+        : 'cancel-' + Date.now() + '-' + Math.random().toString(36).slice(2);
+      let result;
+      try {
+        const response = await window.POSActiveBillsRepository.cancel(supabaseClient, tbl, reason.trim(), requestId);
+        if (response.error) throw response.error;
+        result = response.data || {};
+      } catch (error) {
+        console.error('Pembatalan bill gagal/hasil belum pasti:', error);
+        try { await loadActiveBillsFromSupabase(); } catch (refreshError) { console.warn('Gagal menyegarkan bill setelah pembatalan:', refreshError); }
+        showToast('Hasil pembatalan belum dapat dipastikan. Periksa daftar bill dan audit sebelum mencoba lagi.', 'error');
+        openRecallBillsModal();
+        return;
+      }
+
+      delete ACTIVE_BILLS[tbl];
+      safeLocalSet('nyonya_active_bills', ACTIVE_BILLS);
+      updateActiveBillsCount();
+      renderTableOptions();
+      closeRecallBillsModal();
+      if (loadedActiveBillTable === tbl) {
+        CART = [];
+        loadedActiveBillTable = null;
+        renderCart();
+        preserveCartAfterKitchenTicket = false;
+      } else {
+        preserveCartAfterKitchenTicket = true;
+      }
+      kitchenTicketMode = 'cancellation';
+      const ktContent = document.getElementById('kitchen-ticket-content');
+      const cancelledItems = Array.isArray(result.items) ? result.items : (bill.items || []);
+      ktContent.innerHTML = `
+        <div class="text-center pb-2 border-b-2 border-red-600"><h4 class="font-extrabold text-sm">${escapeHtml(storeConfig.name)}</h4><p class="text-sm font-black text-red-700">PEMBATALAN PESANAN — JANGAN DIPROSES</p></div>
+        <div class="py-1"><strong>Meja: ${escapeHtml(tbl)}</strong><br><span>Waktu batal: ${escapeHtml(new Date().toLocaleTimeString())} | Kasir: ${escapeHtml(currentUser.name)}</span></div>
+        <div class="py-2 border-y border-dashed space-y-1">${cancelledItems.map(i=>`<div><strong>${Number(i.qty) || 0}x ${escapeHtml(i.name)}</strong>${i.notes ? `<br><span class="text-red-600 pl-3">Catatan: ${escapeHtml(i.notes)}</span>` : ''}</div>`).join('')}</div>
+        <div class="border-2 border-red-600 p-2 font-extrabold text-red-700">ALASAN: ${escapeHtml(result.reason || reason.trim())}</div>
+        <div class="text-[10px] text-slate-600">Jika makanan sudah terlanjur dibuat, konfirmasi ke kasir. Pembatalan ini tidak otomatis mengembalikan bahan yang sudah dipakai.</div>
+      `;
+      const closeAction = document.getElementById('kitchen-ticket-close-action');
+      if (closeAction) closeAction.textContent = 'Tutup Tiket Pembatalan';
+      document.getElementById('kitchen-ticket-modal').classList.remove('hidden');
+      if (printerConfig.autoKitchen) setTimeout(printKitchenTicket, 350);
+      showToast('Bill dibatalkan. Cetak dan sampaikan tiket pembatalan ke dapur.', 'success');
     }
 
     function updateActiveBillsCount() { document.getElementById('active-bills-count').textContent = Object.keys(ACTIVE_BILLS).length; }
@@ -2200,9 +2320,10 @@
         const b = ACTIVE_BILLS[tbl];
         const div = document.createElement('div');
         div.className = "bg-white p-3 rounded-xl border flex items-center justify-between";
-        div.innerHTML = `<div><h5 class="font-bold text-sm">${escapeHtml(b.table)} (${escapeHtml(b.orderType)})</h5><p class="text-[11px] text-slate-500">${(b.items || []).length} item | Masuk: ${escapeHtml(b.time)}</p></div><button type="button" data-table="${escapeHtml(tbl)}" class="recall-btn px-3 py-1.5 bg-brand-600 text-white text-xs font-bold rounded-xl">Panggil</button>`;
+        div.innerHTML = `<div class="min-w-0"><h5 class="font-bold text-sm">${escapeHtml(b.table)} (${escapeHtml(b.orderType)})</h5><p class="text-[11px] text-slate-500">${(b.items || []).length} jenis item | Masuk: ${escapeHtml(b.time)}</p></div><div class="flex gap-2 shrink-0"><button type="button" data-table="${escapeHtml(tbl)}" class="recall-btn px-3 py-1.5 bg-brand-600 text-white text-xs font-bold rounded-xl">Panggil</button><button type="button" data-table="${escapeHtml(tbl)}" class="cancel-bill-btn px-3 py-1.5 bg-red-600 text-white text-xs font-bold rounded-xl">Batalkan</button></div>`;
         // Tidak memakai onclick inline berisi data; nama meja dibaca dari atribut data.
         div.querySelector('.recall-btn').addEventListener('click', (e) => recallSpecificBill(e.currentTarget.dataset.table));
+        div.querySelector('.cancel-bill-btn').addEventListener('click', (e) => cancelActiveBill(e.currentTarget.dataset.table));
         list.appendChild(div);
       });
       document.getElementById('recall-bills-modal').classList.remove('hidden');
