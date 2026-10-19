@@ -766,13 +766,18 @@
       #mgmt-view-products tbody tr {
         display: grid;
         grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-        gap: .4rem .55rem;
+        gap: .3rem .45rem;
         min-width: 0;
-        padding: .65rem;
+        padding: .48rem;
         border: 1px solid #e2e8f0;
-        border-radius: .9rem;
+        border-radius: .75rem;
         background: #fff;
-        box-shadow: 0 2px 7px rgb(15 23 42 / .04);
+        box-shadow: 0 1px 4px rgb(15 23 42 / .035);
+      }
+      #mgmt-view-menu-mgmt tbody tr {
+        gap: .22rem .4rem;
+        padding: .4rem .45rem;
+        border-radius: .7rem;
       }
       #mgmt-view-menu-mgmt tbody td,
       #mgmt-view-products tbody td {
@@ -829,8 +834,36 @@
       }
       #mgmt-view-products tbody td:nth-child(4)::before { content: "Status"; }
       #mgmt-view-products tbody td:nth-child(4) button {
-        min-height: 34px;
-        padding: .35rem .6rem;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: .35rem;
+        min-height: 38px;
+        min-width: 112px;
+        padding: .4rem .7rem;
+        border: 1px solid currentColor;
+        border-radius: .65rem;
+        box-shadow: 0 2px 4px rgb(15 23 42 / .09);
+        cursor: pointer;
+        font-size: .72rem;
+        font-weight: 800;
+        letter-spacing: .01em;
+        transition: transform .12s ease, box-shadow .12s ease, filter .12s ease;
+      }
+      #mgmt-view-products tbody td:nth-child(4) button::after {
+        content: "↻ Ubah";
+        padding-left: .35rem;
+        border-left: 1px solid currentColor;
+        font-size: .65rem;
+        font-weight: 700;
+      }
+      #mgmt-view-products tbody td:nth-child(4) button:active {
+        transform: scale(.97);
+        box-shadow: none;
+      }
+      #mgmt-view-products tbody td:nth-child(4) button:focus-visible {
+        outline: 3px solid #fdba74;
+        outline-offset: 2px;
       }
       #mgmt-view-products tbody td:last-child {
         display: none;
@@ -853,14 +886,15 @@
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        min-height: 40px;
-        min-width: 62px;
+        min-height: 36px;
+        min-width: 58px;
         margin: 0 !important;
-        padding: .45rem .7rem;
+        padding: .35rem .55rem;
         border: 1px solid #e2e8f0;
-        border-radius: .6rem;
+        border-radius: .55rem;
         background: #fff;
         white-space: nowrap;
+        font-size: .72rem;
       }
       #mgmt-view-menu-mgmt tbody td:last-child button:last-child {
         border-color: #fecaca;
