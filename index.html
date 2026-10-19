@@ -720,7 +720,155 @@
       html { scroll-behavior: auto; }
       #product-grid > button, #category-tabs-container button { transition: none; }
     }
-</style>
+
+    /* MOBILE FIX: menu management and product stock tables become readable cards. */
+    @media (max-width: 767px) {
+      #mgmt-view-menu-mgmt > .flex:first-child {
+        align-items: flex-start;
+        gap: .65rem;
+        flex-wrap: wrap;
+      }
+      #mgmt-view-menu-mgmt > .flex:first-child h4 {
+        min-width: 0;
+        flex: 1 1 12rem;
+        line-height: 1.35;
+      }
+      #mgmt-view-menu-mgmt > .flex:first-child > button {
+        flex: 0 0 auto;
+        padding: .6rem .7rem;
+        white-space: nowrap;
+      }
+
+      #mgmt-view-menu-mgmt > .bg-white,
+      #mgmt-view-products > .bg-white {
+        overflow: visible !important;
+        background: transparent;
+        border: 0;
+        box-shadow: none;
+      }
+      #mgmt-view-menu-mgmt table,
+      #mgmt-view-products table {
+        display: block;
+        width: 100%;
+        table-layout: fixed;
+      }
+      #mgmt-view-menu-mgmt thead,
+      #mgmt-view-products thead {
+        display: none;
+      }
+      #mgmt-view-menu-mgmt tbody,
+      #mgmt-view-products tbody {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr);
+        gap: .7rem;
+      }
+      #mgmt-view-menu-mgmt tbody tr,
+      #mgmt-view-products tbody tr {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+        gap: .4rem .55rem;
+        min-width: 0;
+        padding: .65rem;
+        border: 1px solid #e2e8f0;
+        border-radius: .9rem;
+        background: #fff;
+        box-shadow: 0 2px 7px rgb(15 23 42 / .04);
+      }
+      #mgmt-view-menu-mgmt tbody td,
+      #mgmt-view-products tbody td {
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: flex-start;
+        min-width: 0;
+        padding: .35rem !important;
+        border: 0;
+        text-align: left !important;
+        overflow-wrap: anywhere;
+        white-space: normal;
+        font-size: .75rem;
+        line-height: 1.35;
+      }
+      #mgmt-view-menu-mgmt tbody td::before,
+      #mgmt-view-products tbody td::before {
+        display: block;
+        margin-bottom: .2rem;
+        color: #64748b;
+        font-size: .6rem;
+        font-weight: 800;
+        letter-spacing: .04em;
+        text-transform: uppercase;
+      }
+      #mgmt-view-menu-mgmt tbody td:first-child,
+      #mgmt-view-products tbody td:first-child {
+        grid-column: 1 / -1;
+        padding-bottom: .55rem !important;
+        border-bottom: 1px solid #f1f5f9;
+        color: #0f172a;
+        font-size: .88rem;
+        font-weight: 800;
+        line-height: 1.4;
+      }
+      #mgmt-view-menu-mgmt tbody td:nth-child(2)::before,
+      #mgmt-view-products tbody td:nth-child(2)::before { content: "Kategori"; }
+      #mgmt-view-menu-mgmt tbody td:nth-child(3)::before { content: "Harga Toko"; }
+      #mgmt-view-menu-mgmt tbody td:nth-child(4)::before { content: "Resep (BOM)"; }
+      #mgmt-view-products tbody td:nth-child(3)::before { content: "Harga Jual"; }
+      #mgmt-view-products tbody td:nth-child(3) > div {
+        display: flex;
+        justify-content: space-between;
+        gap: .5rem;
+        width: 100%;
+        padding: .12rem 0;
+        white-space: nowrap;
+        font-size: .7rem;
+        font-variant-numeric: tabular-nums;
+      }
+      #mgmt-view-products tbody td:nth-child(4) {
+        align-items: flex-start;
+      }
+      #mgmt-view-products tbody td:nth-child(4)::before { content: "Status"; }
+      #mgmt-view-products tbody td:nth-child(4) button {
+        min-height: 34px;
+        padding: .35rem .6rem;
+      }
+      #mgmt-view-products tbody td:last-child {
+        display: none;
+      }
+      #mgmt-view-menu-mgmt tbody td:last-child {
+        grid-column: 1 / -1;
+        display: flex;
+        flex-direction: row;
+        justify-content: flex-end;
+        align-items: center;
+        gap: .5rem;
+        padding-top: .55rem !important;
+        border-top: 1px solid #f1f5f9;
+      }
+      #mgmt-view-menu-mgmt tbody td:last-child::before {
+        content: "Aksi";
+        margin: 0 auto 0 0;
+      }
+      #mgmt-view-menu-mgmt tbody td:last-child button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 40px;
+        min-width: 62px;
+        margin: 0 !important;
+        padding: .45rem .7rem;
+        border: 1px solid #e2e8f0;
+        border-radius: .6rem;
+        background: #fff;
+        white-space: nowrap;
+      }
+      #mgmt-view-menu-mgmt tbody td:last-child button:last-child {
+        border-color: #fecaca;
+        background: #fef2f2;
+      }
+    }
+
+  </style>
 </head>
 
 <body class="auth-locked bg-slate-100 font-sans text-slate-800 antialiased min-h-[100dvh] flex flex-col overflow-x-hidden">
